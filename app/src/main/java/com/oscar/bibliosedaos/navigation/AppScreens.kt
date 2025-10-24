@@ -179,23 +179,6 @@ sealed class AppScreens(val route: String) {
      * Formulari d'edició del perfil personal amb validació en temps real.
      * Permet modificar dades personals mantenint la integritat del sistema.
      *
-     * **Camps Editables:**
-     * - ✅ Nick (amb validació d'unicitat)
-     * - ✅ Nombre
-     * - ✅ Primer cognom (apellido1)
-     * - ✅ Segon cognom (apellido2) - Opcional
-     *
-     * **Camps NO Editables:**
-     * -  ID d'usuari (permanent i immutable)
-     * -  Rol (requereix permisos especials)
-     * -  Contrasenya (pantalla separada planificada)
-     *
-     * **Funcionalitats:**
-     * - Detecció automàtica de canvis sense guardar
-     * - Validació en temps real de cada camp
-     * - Advertència visual si hi ha canvis pendents
-     * - Botó "Guardar" deshabilitat si hi ha errors
-     * - Confirmació visual després de guardar
      *
      * **Validacions:**
      * - Nick: 3-50 caràcters, alfanumèric + guió baix, únic

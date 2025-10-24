@@ -186,7 +186,7 @@ fun UserProfileScreen(
                                 UserInfoRow("ID", user.id.toString())
                                 UserInfoRow(
                                     "Rol",
-                                    if (user.rol == 0) "Usuari" else "Administrador"
+                                    if (user.rol == 1) "Usuari" else "Administrador"
                                 )
                             }
                         }

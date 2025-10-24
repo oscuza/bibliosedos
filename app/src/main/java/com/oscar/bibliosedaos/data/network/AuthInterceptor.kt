@@ -133,7 +133,7 @@ class AuthInterceptor : Interceptor {
         // i NO és la petició de logout
 
         if ((response.code == 401 || response.code == 403) &&
-            !isAuthLogin) {
+            !isAuthLogin && !isLogout) {
 
             // Registrar l'error per debugging
             android.util.Log.e(

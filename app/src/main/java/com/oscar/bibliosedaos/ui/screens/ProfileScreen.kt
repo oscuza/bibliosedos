@@ -51,11 +51,6 @@ fun ProfileScreen(
 ) {
     // ========== Estats Observables ==========
 
-    /**
-     * DNI de prova (no utilitzat en aquesta pantalla).
-     * Mantingut per compatibilitat amb el ViewModel.
-     */
-    val midni by authViewModel.midni.collectAsState()
 
     /**
      * Estat del perfil de l'usuari.
