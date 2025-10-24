@@ -231,8 +231,11 @@ class AuthViewModel(
     /**
      * Actualitza el perfil d'un usuari existent.
      *
-     * Permet modificar les dades d'un usuari (nom, cognoms, etc.)
-     * excepte el rol i l'ID que són immutables.
+     * Aquest mètode gestiona automàticament els camps obligatoris del backend:
+     * 1. Primer obté l'usuari actual amb TOTS els seus camps
+     * 2. Manté els valors existents dels camps no editables (nif, localitat, etc.)
+     * 3. Només actualitza els camps que l'usuari pot modificar
+     * 4. Envia TOTS els camps al backend per complir les validacions
      *
      * @param userId ID de l'usuari a actualitzar
      * @param updatedUser Objecte User amb les dades actualitzades
@@ -246,18 +249,57 @@ class AuthViewModel(
     fun updateUserProfile(userId: Long, updatedUser: User, onResult: (Boolean, String) -> Unit) {
         viewModelScope.launch {
             try {
-                // 1. Enviar actualització al servidor
-                val response = api.updateUser(userId, updatedUser)
-                // 2a. Actualitzar estat local amb dades noves
+                // PAS 1: Obtenir l'usuari actual amb TOTS els seus camps
+                val currentUser = api.getUserById(userId)
+
+                // PAS 2: Crear el request amb els camps actualitzats + els camps existents
+                val updateRequest = UpdateUserRequest(
+                    id = userId,
+                    nick = updatedUser.nick,
+                    nom = updatedUser.nom,
+                    cognom1 = updatedUser.cognom1 ?: currentUser.cognom1 ?: "",
+                    cognom2 = when {
+                        updatedUser.cognom2.isNullOrEmpty() -> " "  // DESPRÉS
+                        else -> updatedUser.cognom2
+                    },
+                    rol = updatedUser.rol,
+                    nif = updatedUser.nif ?: currentUser.nif ?: "",
+                    carrer = updatedUser.carrer ?: currentUser.carrer ?: "",
+                    localitat = updatedUser.localitat ?: currentUser.localitat ?: "",
+                    provincia = updatedUser.provincia ?: currentUser.provincia ?: "",
+                    cp = updatedUser.cp ?: currentUser.cp ?: "",
+                    tlf = updatedUser.tlf ?: currentUser.tlf ?: "",
+                    email = updatedUser.email ?: currentUser.email ?: ""
+                )
+
+                // PAS 3: Enviar actualització al servidor
+                val response = api.updateUser(userId, updateRequest)
+
+                // PAS 4: Actualitzar estat local amb la resposta
                 _userProfileState.value = _userProfileState.value.copy(user = response)
-                // 3. Notificar èxit
                 onResult(true, "Perfil actualitzat correctament")
+
             } catch (e: Exception) {
-                // 2b. Notificar error
-                onResult(false, "Error al actualitzar: ${e.message}")
+                // Gestió d'errors amb missatges específics
+                val errorMessage = when {
+                    e.message?.contains("409") == true -> {
+                        when {
+                            e.message?.contains("nick") == true -> "El nick ja existeix"
+                            e.message?.contains("nif") == true -> "El NIF ja està en ús"
+                            e.message?.contains("email") == true -> "L'email ja està en ús"
+                            else -> "Dades duplicades"
+                        }
+                    }
+                    e.message?.contains("400") == true -> "Dades invàlides. Verifica tots els camps"
+                    e.message?.contains("403") == true -> "No tens permisos per actualitzar aquest usuari"
+                    e.message?.contains("404") == true -> "Usuari no trobat"
+                    else -> "Error al actualitzar: ${e.message}"
+                }
+                onResult(false, errorMessage)
             }
         }
     }
+
 
     /**
      * Elimina un usuari del sistema.
@@ -279,12 +321,20 @@ class AuthViewModel(
             try {
                 val response = api.deleteUser(userId)
                 if (response.isSuccessful) {
+                    // Refrescar la llista després d'eliminar
                     loadAllUsers()
                     onResult(true, "Usuari eliminat correctament")
                 } else {
-                    onResult(false, "Error al eliminar: ${response.code()}")
+                    // Error del servidor
+                    val errorMessage = when (response.code()) {
+                        403 -> "No pots eliminar-te a tu mateix"
+                        404 -> "Usuari no trobat"
+                        else -> "Error al eliminar: ${response.code()}"
+                    }
+                    onResult(false, errorMessage)
                 }
             } catch (e: Exception) {
+                // Error de connexió
                 onResult(false, "Error de connexió: ${e.message}")
             }
         }
@@ -294,14 +344,15 @@ class AuthViewModel(
      * Crea un nou usuari al sistema.
      *
      * Funció exclusiva per administradors.
-     * Valida que el nick sigui únic i que tots els camps obligatoris estiguin presents.
-     * Si l'operació és exitosa, recarrega la llista d'usuaris.
+     * Aquest mètode gestiona automàticament els camps obligatoris:
+     *  - Envia valors per defecte per als camps que el backend marca com obligatoris
+     *  - Aquests valors es poden actualitzar més endavant
      *
      * @param nick Nom d'usuari únic
      * @param password Contrasenya (mínim 6 caràcters)
-     * @param nombre Nom real de l'usuari
-     * @param apellido1 Primer cognom
-     * @param apellido2 Segon cognom (opcional)
+     * @param nom Nom real de l'usuari
+     * @param cognom1 Primer cognom
+     * @param cognom2 Segon cognom (opcional)
      * @param rol Rol de l'usuari (1=Usuari normal, 2=Administrador)
      * @param onResult Callback amb el resultat de l'operació
      *
@@ -315,35 +366,119 @@ class AuthViewModel(
         nick: String,
         password: String,
         nombre: String,
-        apellido1: String,
-        apellido2: String?,
+        cognom1: String,
+        cognom2: String?,
         rol: Int,
+        nif: String,
+        email: String,
+        tlf: String,
+        carrer: String,
+        localitat: String,
+        cp: String,
+        provincia: String,
         onResult: (Boolean, String) -> Unit,
     ) {
         viewModelScope.launch {
             try {
+                // Crear request amb TOTS els camps obligatoris
                 val request = CreateUserRequest(
                     nick = nick,
                     password = password,
-                    nombre = nombre,
-                    apellido1 = apellido1,
+                    nom = nombre,
+                    cognom1 = cognom1,
+                    cognom2 = cognom2,
                     rol = rol,
-                    apellido2 = apellido2
+                    // CAMPS OBLIGATORIS AMB VALORS PER DEFECTE
+                    // Aquests valors són temporals i es poden actualitzar més endavant
+                    nif = nif,
+                    carrer = carrer,
+                    localitat = localitat,
+                    provincia = provincia,
+                    cp = cp,
+                    tlf = tlf,
+                    email = email
                 )
 
+                // Enviar petició al servidor
                 val response = api.createUser(request)
 
-                // Refrescar la llista si estem a la vista d'admin
+                // Refrescar la llista d'usuaris si estem a la vista d'admin
                 loadAllUsers()
 
                 onResult(true, "Usuari '$nick' creat correctament")
+
+            } catch (e: Exception) {
+                // Gestió d'errors amb missatges específics en català
+                val errorMessage = when {
+                    e.message?.contains("409") == true -> {
+                        when {
+                            e.message?.contains("nick") == true -> "El nick '$nick' ja existeix"
+                            e.message?.contains("nif") == true -> "El NIF ja està registrat"
+                            e.message?.contains("email") == true -> "L'email ja està registrat"
+                            else -> "Dades duplicades. Verifica nick, NIF i email"
+                        }
+                    }
+
+                    e.message?.contains("400") == true -> "Dades invàlides. Verifica tots els camps"
+                    e.message?.contains("403") == true -> "No tens permisos per crear usuaris"
+                    else -> "Error al crear usuari: ${e.message}"
+                }
+                onResult(false, errorMessage)
+            }
+        }
+    }
+    /**
+     * Actualització completa amb TOTS els camps (per EditProfileScreen actualitzat)
+     */
+    fun updateCompleteProfile(
+        userId: Long,
+        nick: String,
+        nom: String,
+        cognom1: String,
+        cognom2: String?,
+        nif: String,
+        email: String,
+        tlf: String,
+        carrer: String,
+        localitat: String,
+        cp: String,
+        provincia: String,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                // Obtenir l'usuari actual per mantenir el rol i password
+                val currentUser = api.getUserById(userId)
+
+                val updateRequest = UpdateUserRequest(
+                    id = userId,
+                    nick = nick,
+                    nom = nom,
+                    cognom1 = cognom1,
+                    cognom2 = when {
+                        cognom2.isNullOrBlank() -> " "  // Espai per camps buits
+                        else -> cognom2
+                    },
+                    rol = currentUser.rol,  // Mantenir el rol actual
+                    nif = nif,
+                    carrer = carrer,
+                    localitat = localitat,
+                    provincia = provincia,
+                    cp = cp,
+                    tlf = tlf,
+                    email = email
+                    // No enviem password en actualització normal
+                )
+
+                val response = api.updateUser(userId, updateRequest)
+                _userProfileState.value = _userProfileState.value.copy(user = response)
+                onResult(true, "Perfil actualitzat correctament")
+
             } catch (e: Exception) {
                 val errorMessage = when {
-                    e.message?.contains("409") == true -> "El nick '$nick' ja existeix"
+                    e.message?.contains("409") == true -> "Dades duplicades (nick, NIF o email)"
                     e.message?.contains("400") == true -> "Dades invàlides"
-                    e.message?.contains("401") == true -> "No autoritzat"
-                    e.message?.contains("403") == true -> "Sense permisos per crear usuaris"
-                    else -> "Error al crear usuari: ${e.message}"
+                    else -> "Error: ${e.message}"
                 }
                 onResult(false, errorMessage)
             }
@@ -381,6 +516,135 @@ class AuthViewModel(
                 _loginUiState.value = LoginUiState()
                 _userListState.value = UserListState()
                 _userProfileState.value = UserProfileState()
+            }
+        }
+    }
+
+    /**
+     * Canvia la contrasenya de l'usuari.
+     *
+     * IMPORTANT: Aquesta funció requereix verificar la contrasenya actual
+     * abans d'actualitzar-la amb la nova.
+     *
+     * @param userId ID de l'usuari
+     * @param currentPassword Contrasenya actual per verificació
+     * @param newPassword Nova contrasenya
+     * @param onResult Callback amb el resultat (èxit: Boolean, missatge: String)
+     */
+    fun changePassword(
+        userId: Long,
+        currentPassword: String,
+        newPassword: String,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                // Primer, verificar que la contrasenya actual és correcta
+                // Això es pot fer intentant fer login amb les credencials actuals
+                val user = _userProfileState.value.user
+                if (user == null) {
+                    onResult(false, "No s'ha pogut obtenir la informació de l'usuari")
+                    return@launch
+                }
+
+                // Verificar contrasenya actual fent login
+                try {
+                    val authRequest = AuthenticationRequest(
+                        nick = user.nick,
+                        password = currentPassword
+                    )
+                    api.login(authRequest) // Si falla, la contrasenya actual és incorrecta
+                } catch (e: Exception) {
+                    onResult(false, "La contrasenya actual no és correcta")
+                    return@launch
+                }
+
+                // Si arribem aquí, la contrasenya actual és correcta
+                // Ara actualitzem amb la nova contrasenya
+                val currentUserData = api.getUserById(userId)
+
+                val updateRequest = UpdateUserRequest(
+                    id = userId,
+                    nick = currentUserData.nick,
+                    nom = currentUserData.nom,
+                    cognom1 = currentUserData.cognom1 ?: "",
+                    cognom2 = currentUserData.cognom2,
+                    rol = currentUserData.rol,
+                    nif = currentUserData.nif ?: "",
+                    carrer = currentUserData.carrer ?: "",
+                    localitat = currentUserData.localitat ?: "",
+                    provincia = currentUserData.provincia ?: "",
+                    cp = currentUserData.cp ?: "",
+                    tlf = currentUserData.tlf ?: "",
+                    email = currentUserData.email ?: "",
+                    password = newPassword  // IMPORTANT: Afegir la nova contrasenya
+                )
+
+                val response = api.updateUser(userId, updateRequest)
+
+                // Actualitzar estat local si cal
+                _userProfileState.value = _userProfileState.value.copy(user = response)
+
+                onResult(true, "Contrasenya canviada correctament! Recorda usar la nova contrasenya en el proper login.")
+
+            } catch (e: Exception) {
+                val errorMessage = when {
+                    e.message?.contains("401") == true -> "Contrasenya actual incorrecta"
+                    e.message?.contains("403") == true -> "No tens permisos per canviar aquesta contrasenya"
+                    e.message?.contains("400") == true -> "Format de contrasenya invàlid"
+                    else -> "Error al canviar contrasenya: ${e.message}"
+                }
+                onResult(false, errorMessage)
+            }
+        }
+    }
+
+    /**
+     * Canvia la contrasenya d'un altre usuari (només per administradors).
+     * No requereix verificar la contrasenya actual.
+     *
+     * @param userId ID de l'usuari a modificar
+     * @param newPassword Nova contrasenya
+     * @param onResult Callback amb el resultat
+     */
+    fun resetUserPassword(
+        userId: Long,
+        newPassword: String,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                // Obtenir dades actuals de l'usuari
+                val currentUserData = api.getUserById(userId)
+
+                val updateRequest = UpdateUserRequest(
+                    id = userId,
+                    nick = currentUserData.nick,
+                    nom = currentUserData.nom,
+                    cognom1 = currentUserData.cognom1 ?: "",
+                    cognom2 = currentUserData.cognom2,
+                    rol = currentUserData.rol,
+                    nif = currentUserData.nif ?: "",
+                    carrer = currentUserData.carrer ?: "",
+                    localitat = currentUserData.localitat ?: "",
+                    provincia = currentUserData.provincia ?: "",
+                    cp = currentUserData.cp ?: "",
+                    tlf = currentUserData.tlf ?: "",
+                    email = currentUserData.email ?: "",
+                    password = newPassword  // Nova contrasenya
+                )
+
+                api.updateUser(userId, updateRequest)
+
+                onResult(true, "Contrasenya restablerta correctament per l'usuari ${currentUserData.nick}")
+
+            } catch (e: Exception) {
+                val errorMessage = when {
+                    e.message?.contains("404") == true -> "Usuari no trobat"
+                    e.message?.contains("403") == true -> "No tens permisos d'administrador"
+                    else -> "Error al restablir contrasenya: ${e.message}"
+                }
+                onResult(false, errorMessage)
             }
         }
     }

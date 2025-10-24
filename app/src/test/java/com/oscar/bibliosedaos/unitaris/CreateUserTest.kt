@@ -83,14 +83,15 @@ class CreateUserTest {
     private class FakeAuthApiSuccess : AuthApiService {
         override suspend fun createUser(request: CreateUserRequest): AuthResponse {
             return AuthResponse(
-                token = "new_token",
-                id = 100,
-                rol = 1,  // Usuario normal
-                nick = request.nick,
-                nombre = request.nombre,
-                apellido1 = request.apellido1,
-                apellido2 = request.apellido2
+                "new_token",
+                100,
+                request.rol,
+                request.nick,
+                request.nom,
+                request.cognom1,
+                request.cognom2
             )
+
         }
 
         override suspend fun getAllUsers(): List<User> = listOf(
@@ -101,7 +102,9 @@ class CreateUserTest {
             error("no utilitzat")
 
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
-        override suspend fun updateUser(userId: Long, user: User): User = error("no utilitzat")
+        override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User =
+            error("no utilitzat")
+
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun logout(): Response<String> = error("no utilitzat")
     }
@@ -131,7 +134,9 @@ class CreateUserTest {
 
         override suspend fun getAllUsers(): List<User> = error("no utilitzat")
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
-        override suspend fun updateUser(userId: Long, user: User): User = error("no utilitzat")
+        override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User =
+            error("no utilitzat")
+
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun logout(): Response<String> = error("no utilitzat")
     }
@@ -162,7 +167,7 @@ class CreateUserTest {
 
         override suspend fun getAllUsers(): List<User> = error("no utilitzat")
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
-        override suspend fun updateUser(userId: Long, user: User): User = error("no utilitzat")
+        override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun logout(): Response<String> = error("no utilitzat")
     }
@@ -206,9 +211,16 @@ class CreateUserTest {
             nick = "newuser",
             password = "password123",
             nombre = "Nou",
-            apellido1 = "Usuari",
-            apellido2 = null,
-            rol = 1
+            cognom1 = "Usuari",
+            cognom2 = null,
+            rol = 1,
+            nif = "12345678Z",
+            email = "newuser@test.com",
+            tlf = "600600600",
+            carrer = "Carrer Major 1",
+            localitat = "Barcelona",
+            cp = "08001",
+            provincia = "Barcelona"
         ) { success, message ->
             result = Pair(success, message)
         }
@@ -254,12 +266,19 @@ class CreateUserTest {
 
         // ACT: Intentar crear amb nick duplicat
         vm.createUser(
-            nick = "admin",  // Nick ya existe
+            nick = "admin",//nick ja exist
             password = "password123",
-            nombre = "Test",
-            apellido1 = "User",
-            apellido2 = null,
-            rol = 1
+            nombre = "Nou",
+            cognom1 = "Usuari",
+            cognom2 = null,
+            rol = 1,
+            nif = "12345678Z",
+            email = "newuser@test.com",
+            tlf = "600600600",
+            carrer = "Carrer Major 1",
+            localitat = "Barcelona",
+            cp = "08001",
+            provincia = "Barcelona"
         ) { success, message ->
             result = Pair(success, message)
         }
@@ -309,10 +328,17 @@ class CreateUserTest {
         vm.createUser(
             nick = "newuser",
             password = "password123",
-            nombre = "Test",
-            apellido1 = "User",
-            apellido2 = null,
-            rol = 1
+            nombre = "Nou",
+            cognom1 = "Usuari",
+            cognom2 = null,
+            rol = 1,
+            nif = "12345678Z",
+            email = "newuser@test.com",
+            tlf = "600600600",
+            carrer = "Carrer Major 1",
+            localitat = "Barcelona",
+            cp = "08001",
+            provincia = "Barcelona"
         ) { success, message ->
             result = Pair(success, message)
         }

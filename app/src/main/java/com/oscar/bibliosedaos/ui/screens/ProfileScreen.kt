@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.oscar.bibliosedaos.data.network.TokenManager
@@ -82,6 +83,11 @@ fun ProfileScreen(
      * false = perfil d'un altre usuari (mostrar botó "Volver")
      */
     val isViewingOwnProfile = currentUserId == userId
+
+    val currentUserIsAdmin = (loginState.authResponse?.rol == 2)
+
+    // Variable per gestionar el diàleg de restablir contrasenya (per admins)
+    var showResetPasswordDialog by remember { mutableStateOf(false) }
 
     // ========== Càrrega del Perfil ==========
 
@@ -215,9 +221,9 @@ fun ProfileScreen(
                          */
                         ProfileCard(
                             nick = user.nick,
-                            nombre = user.nombre,
-                            apellido1 = user.apellido1 ?: "",
-                            apellido2 = user.apellido2 ?: "",
+                            nombre = user.nom,
+                            apellido1 = user.cognom1 ?: "",
+                            apellido2 = user.cognom2 ?: "",
                             userId = user.id,
                             isAdmin = isAdmin
                         )
@@ -226,7 +232,7 @@ fun ProfileScreen(
 
                         /**
                          * Opcions de gestió del compte (comunes per tots).
-                         * Inclou: Editar Perfil, Canviar Contrasenya (TODO)
+                         * Inclou: Editar Perfil, Canviar Contrasenya
                          */
                         SectionCard(
                             title = "El Meu Compte",
@@ -248,70 +254,152 @@ fun ProfileScreen(
                                 title = "Canviar Contrasenya",
                                 subtitle = "Actualitzar contrasenya d'accés",
                                 onClick = {
-                                    // TODO: REQ 1 - Implementar ChangePasswordScreen
-                                    Toast.makeText(
-                                        context,
-                                        "Funcionalitat pendent d'implementar",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    // Navegar a la pantalla de canviar contrasenya
+                                    navController.navigate("change_password")
                                 }
                             )
                         }
 
-                        // ========== Opcions segons Rol ==========
+                        // ========== Botó Restablir Contrasenya (només per admins veient altres perfils) ==========
+                        if (currentUserIsAdmin &&  !isViewingOwnProfile) {
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                        if (isAdmin) {
-                            /**
-                             * Opcions específiques per administradors.
-                             */
-                            AdminOptionsSection(navController, context)
-                        } else {
-                            /**
-                             * Opcions específiques per usuaris normals.
-                             */
-                            UserOptionsSection(navController)
+                            OutlinedButton(
+                                onClick = {
+                                    showResetPasswordDialog = true
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 0.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.tertiary
+                                ),
+                                border = ButtonDefaults.outlinedButtonBorder
+                            ) {
+                                Icon(
+                                    Icons.Default.AdminPanelSettings,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("RESTABLIR CONTRASENYA D'AQUEST USUARI")
+                            }
                         }
 
-                        // ========== Catàleg de Llibres (Comú) ==========
+                        // ========== Seccions segons el rol de l'usuari ==========
 
                         /**
-                         * Secció compartida per explorar el catàleg.
-                         * Accessible per tots els usuaris autenticats.
+                         * Mostra opcions específiques segons si és admin o usuari normal.
                          */
-                        SectionCard(
-                            title = "Explorar Llibres",
-                            icon = Icons.Default.LibraryBooks
-                        ) {
-                            OptionItem(
-                                icon = Icons.Default.Search,
-                                title = "Catàleg Complet",
-                                subtitle = "Buscar i consultar tots els llibres",
-                                onClick = {
-                                    // TODO: REQ 7 - Implementar BooksListScreen
-                                    Toast.makeText(
-                                        context,
-                                        "Funcionalitat pendent d'implementar",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            )
+                        if (currentUserIsAdmin) {
+                            // Seccions per administradors
+                            AdminUserSection(navController, context)
+                        } else {
+                            // Seccions per usuaris normals
+                            NormalUserSection(navController, context)
                         }
                     }
                 }
             }
         }
     }
+
+    // ========== Diàleg per Restablir Contrasenya (Admins) ==========
+    if (showResetPasswordDialog) {
+        var newPassword by remember { mutableStateOf("") }
+        var confirmPassword by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { showResetPasswordDialog = false },
+            title = {
+                Text("Restablir Contrasenya")
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        "Estàs a punt de restablir la contrasenya de l'usuari ${userProfileState.user?.nick}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    OutlinedTextField(
+                        value = newPassword,
+                        onValueChange = { newPassword = it },
+                        label = { Text("Nova Contrasenya") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        isError = newPassword.isNotEmpty() && newPassword.length < 6,
+                        supportingText = {
+                            if (newPassword.isNotEmpty() && newPassword.length < 6) {
+                                Text("Mínim 6 caràcters")
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    OutlinedTextField(
+                        value = confirmPassword,
+                        onValueChange = { confirmPassword = it },
+                        label = { Text("Confirmar Contrasenya") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        isError = confirmPassword.isNotEmpty() && confirmPassword != newPassword,
+                        supportingText = {
+                            if (confirmPassword.isNotEmpty() && confirmPassword != newPassword) {
+                                Text("Les contrasenyes no coincideixen")
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (newPassword.length >= 6 && newPassword == confirmPassword) {
+                            authViewModel.resetUserPassword(
+                                userId = userId,
+                                newPassword = newPassword,
+                                onResult = { success, message ->
+                                    if (success) {
+                                        showResetPasswordDialog = false
+                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                    } else {
+                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            )
+                        }
+                    },
+                    enabled = newPassword.length >= 6 && newPassword == confirmPassword
+                ) {
+                    Text("RESTABLIR")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetPasswordDialog = false }) {
+                    Text("CANCEL·LAR")
+                }
+            }
+        )
+    }
 }
 
 /**
- * Secció d'opcions administratives.
+ * Seccions d'opcions per administradors.
  *
  * **Descripció:**
- * Component que mostra les opcions disponibles només per administradors.
- * Inclou gestió d'usuaris i accés al panell web complet.
+ * Component que mostra les opcions disponibles per administradors:
+ * gestió d'usuaris i accés al panell web.
  *
- * @param navController Controlador de navegació per a transicions
- * @param context Context d'Android per llançar intents (obrir navegador)
+ * **Funcionalitats:**
+ * - Veure tots els usuaris
+ * - Afegir nou usuari
+ * - Enllaç al panell web d'administració
+ *
+ * @param navController Controlador per navegació
+ * @param context Context per obrir el navegador
  *
  * @author Oscar
  * @since 1.0
@@ -319,81 +407,27 @@ fun ProfileScreen(
  * @see AddUserScreen
  */
 @Composable
-fun AdminOptionsSection(navController: NavController, context: android.content.Context) {
-    // ========== Missatge Informatiu ==========
-
-    /**
-     * Card amb informació sobre la funcionalitat limitada
-     * de l'app mòbil per administradors.
-     */
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.Info,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                modifier = Modifier.size(32.dp)
-            )
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(
-                    "App mòbil per usuaris",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                )
-                Text(
-                    "Funcionalitat limitada per administradors. Per gestió completa, usar aplicació escriptori.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                )
-            }
-        }
-    }
-
+fun AdminUserSection(
+    navController: NavController,
+    context: android.content.Context,
+) {
     // ========== Gestió d'Usuaris ==========
 
     /**
-     * Secció amb opcions CRUD d'usuaris.
-     * Color d'error per destacar que són opcions d'administrador.
+     * Card per opcions de gestió d'usuaris.
+     * Només disponible per administradors.
      */
     SectionCard(
         title = "Gestió d'Usuaris",
-        icon = Icons.Default.People,
+        icon = Icons.Default.Group,
         containerColor = MaterialTheme.colorScheme.errorContainer
     ) {
         OptionItem(
-            icon = Icons.Default.List,
+            icon = Icons.Default.SupervisorAccount,
             title = "Veure Tots els Usuaris",
-            subtitle = "Llista completa d'usuaris registrats",
+            subtitle = "Gestionar usuaris del sistema",
             onClick = {
                 navController.navigate(AppScreens.AdminHomeScreen.route)
-            }
-        )
-
-        Divider()
-
-        OptionItem(
-            icon = Icons.Default.Search,
-            title = "Buscar Usuari",
-            subtitle = "Buscar per nick o nom",
-            onClick = {
-                // TODO: REQ 2 - Implementar SearchUserScreen
-                Toast.makeText(
-                    context,
-                    "Funcionalitat pendent d'implementar",
-                    Toast.LENGTH_SHORT
-                ).show()
             }
         )
 
@@ -448,25 +482,23 @@ fun AdminOptionsSection(navController: NavController, context: android.content.C
  *
  * **2. Ressenyes:**
  * - Meves Ressenyes: Valoracions escrites
- * - Llibres Favorits: Llibres marcats com a favorits
+ * - Ressenyes Pendents: Llibres per valorar
  *
- * **3. Estat de Compte:**
- * - Sancions: Sancions actives i historial
- * - Dates Límit: Pròximes devolucions
+ * **3. Notificacions:**
+ * - Avisos de Devolució: Recordatoris de dates límit
+ * - Notificacions Generals: Avisos del sistema
  *
- * **4. Notificacions:**
- * - Configurar: Preferències de notificacions per email
- * - Meus Avisos: Notificacions rebudes
- *
- * **Nota:** Totes les funcionalitats estan pendents d'implementar (TODO).
- *
- * @param navController Controlador de navegació per a transicions
+ * @param navController Controlador per navegació
+ * @param context Context per mostrar missatges Toast
  *
  * @author Oscar
  * @since 1.0
  */
 @Composable
-fun UserOptionsSection(navController: NavController) {
+fun NormalUserSection(
+    navController: NavController,
+    context: android.content.Context,
+) {
     val context = LocalContext.current
 
     // ========== Gestió de Préstecs ==========
@@ -530,28 +562,11 @@ fun UserOptionsSection(navController: NavController) {
         Divider()
 
         OptionItem(
-            icon = Icons.Default.StarBorder,
-            title = "Llibres Favorits",
-            subtitle = "Veure llibres que m'han agradat",
+            icon = Icons.Default.Create,
+            title = "Llibres per Valorar",
+            subtitle = "Escriure ressenyes pendents",
             onClick = {
-                // TODO: REQ 6 - Implementar FavoriteBooksScreen
-                Toast.makeText(context, "Funcionalitat pendent", Toast.LENGTH_SHORT).show()
-            }
-        )
-    }
-
-    // ========== Estat de Compte ==========
-
-    SectionCard(
-        title = "Estat del Meu Compte",
-        icon = Icons.Default.Warning
-    ) {
-        OptionItem(
-            icon = Icons.Default.Info,
-            title = "Estat de Sancions",
-            subtitle = "Veure si tinc sancions actives",
-            onClick = {
-                // TODO: REQ 5 - Implementar MySanctionsScreen
+                // TODO: REQ 6 - Implementar PendingReviewsScreen
                 Toast.makeText(context, "Funcionalitat pendent", Toast.LENGTH_SHORT).show()
             }
         )
@@ -559,28 +574,28 @@ fun UserOptionsSection(navController: NavController) {
         Divider()
 
         OptionItem(
-            icon = Icons.Default.EventAvailable,
-            title = "Data Límit de Devolucions",
-            subtitle = "Veure dates d'entrega pròximes",
+            icon = Icons.Default.TrendingUp,
+            title = "Ressenyes Populars",
+            subtitle = "Veure llibres més ben valorats",
             onClick = {
-                // TODO: REQ 4 - Mostrar a MyLoansScreen
+                // TODO: REQ 6 - Implementar PopularBooksScreen
                 Toast.makeText(context, "Funcionalitat pendent", Toast.LENGTH_SHORT).show()
             }
         )
     }
 
-    // ========== Notificacions ==========
+    // ========== Centre de Notificacions ==========
 
     SectionCard(
         title = "Notificacions",
         icon = Icons.Default.Notifications
     ) {
         OptionItem(
-            icon = Icons.Default.Email,
-            title = "Configurar Notificacions",
-            subtitle = "Rebre avisos per email",
+            icon = Icons.Default.Schedule,
+            title = "Avisos de Devolució",
+            subtitle = "Veure dates límit properes",
             onClick = {
-                // TODO: REQ 8 - Implementar NotificationSettingsScreen
+                // TODO: REQ 8 - Implementar ReturnRemindersScreen
                 Toast.makeText(context, "Funcionalitat pendent", Toast.LENGTH_SHORT).show()
             }
         )

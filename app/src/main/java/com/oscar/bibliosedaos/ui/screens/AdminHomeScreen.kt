@@ -428,7 +428,7 @@ fun AdminUserCard(
 
                 // Nom complet
                 Text(
-                    text = "${user.nombre} ${user.apellido1 ?: ""}",
+                    text = "${user.nom} ${user.cognom1 ?: ""}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

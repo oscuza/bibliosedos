@@ -88,7 +88,7 @@ class LogoutTest {
 
         override suspend fun getAllUsers(): List<User> = error("no utilitzat")
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
-        override suspend fun updateUser(userId: Long, user: User): User = error("no utilitzat")
+        override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun createUser(request: CreateUserRequest): AuthResponse =
             error("no utilitzat")
@@ -111,7 +111,7 @@ class LogoutTest {
 
         override suspend fun getAllUsers(): List<User> = error("no utilitzat")
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
-        override suspend fun updateUser(userId: Long, user: User): User = error("no utilitzat")
+        override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun createUser(request: CreateUserRequest): AuthResponse =
             error("no utilitzat")

@@ -102,7 +102,7 @@ class LoadAllUsersTest {
 
         override suspend fun login(request: AuthenticationRequest): AuthResponse = error("no utilitzat")
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
-        override suspend fun updateUser(userId: Long, user: User): User = error("no utilitzat")
+        override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun createUser(request: CreateUserRequest): AuthResponse = error("no utilitzat")
         override suspend fun logout(): Response<String> = error("no utilitzat")
@@ -127,7 +127,7 @@ class LoadAllUsersTest {
 
         override suspend fun login(request: AuthenticationRequest): AuthResponse = error("no utilitzat")
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
-        override suspend fun updateUser(userId: Long, user: User): User = error("no utilitzat")
+        override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun createUser(request: CreateUserRequest): AuthResponse = error("no utilitzat")
         override suspend fun logout(): Response<String> = error("no utilitzat")
@@ -152,7 +152,7 @@ class LoadAllUsersTest {
 
         override suspend fun login(request: AuthenticationRequest): AuthResponse = error("no utilitzat")
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
-        override suspend fun updateUser(userId: Long, user: User): User = error("no utilitzat")
+        override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun createUser(request: CreateUserRequest): AuthResponse = error("no utilitzat")
         override suspend fun logout(): Response<String> = error("no utilitzat")

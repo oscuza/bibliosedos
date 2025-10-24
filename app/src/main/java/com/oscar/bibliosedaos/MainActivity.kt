@@ -94,10 +94,8 @@ fun AppNavigation() {
 
         composable(AppScreens.AddUserScreen.route) {
             AddUserScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
-                },
-                authViewModel = authViewModel  // ✅ Pasar el ViewModel
+                navController = navController,
+                authViewModel = authViewModel
             )
         }
 
@@ -124,7 +122,12 @@ fun AppNavigation() {
                 authViewModel = authViewModel
             )
         }
-
+        composable(AppScreens.ChangePasswordScreen.route) {
+            ChangePasswordScreen(
+                navController = navController,
+                authViewModel = authViewModel
+            )
+        }
         // ========== PANTALLES FUTURES ==========
         composable(AppScreens.BooksScreen.route) {
             Surface(

@@ -87,15 +87,15 @@ class LoginTest {
                 id = 42L,
                 rol = 2,  // Admin
                 nick = "admin",
-                nombre = "Admin",
-                apellido1 = "Test",
-                apellido2 = null
+                nom = "Admin",
+                cognom1 = "Test",
+                cognom2 = null
             )
         }
 
         override suspend fun getAllUsers(): List<User> = emptyList()
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
-        override suspend fun updateUser(userId: Long, user: User): User = error("no utilitzat")
+        override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun createUser(request: CreateUserRequest): AuthResponse =
             error("no utilitzat")
@@ -117,7 +117,7 @@ class LoginTest {
 
         override suspend fun getAllUsers(): List<User> = emptyList()
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
-        override suspend fun updateUser(userId: Long, user: User): User = error("no utilitzat")
+        override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun createUser(request: CreateUserRequest): AuthResponse =
             error("no utilitzat")
@@ -237,15 +237,15 @@ class LoginTest {
                     id = 1,
                     rol = 1,
                     nick = "user",
-                    nombre = "User",
-                    apellido1 = "A",
-                    apellido2 = "test"
+                    nom = "User",
+                    cognom1 = "A",
+                    cognom2 = "test"
                 )
             }
 
             override suspend fun getAllUsers() = emptyList<User>()
             override suspend fun getUserById(userId: Long) = error("no utilitzat")
-            override suspend fun updateUser(userId: Long, user: User) = error("no utilitzat")
+            override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
             override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
             override suspend fun createUser(request: CreateUserRequest): AuthResponse =
                 error("no utilitzat")

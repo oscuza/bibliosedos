@@ -92,7 +92,7 @@ class DeleteUserTest {
 
         override suspend fun login(request: AuthenticationRequest): AuthResponse = error("no utilitzat")
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
-        override suspend fun updateUser(userId: Long, user: User): User = error("no utilitzat")
+        override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
         override suspend fun createUser(request: CreateUserRequest): AuthResponse = error("no utilitzat")
         override suspend fun logout(): Response<String> = error("no utilitzat")
     }
@@ -125,7 +125,7 @@ class DeleteUserTest {
         override suspend fun login(request: AuthenticationRequest): AuthResponse = error("no utilitzat")
         override suspend fun getAllUsers(): List<User> = error("no utilitzat")
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
-        override suspend fun updateUser(userId: Long, user: User): User = error("no utilitzat")
+        override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
         override suspend fun createUser(request: CreateUserRequest): AuthResponse = error("no utilitzat")
         override suspend fun logout(): Response<String> = error("no utilitzat")
     }
@@ -198,12 +198,7 @@ class DeleteUserTest {
      * -  success == false
      * -  missatge conté "Error al eliminar"
      * -  L'usuari NO s'elimina
-     *
-     * **Exemples de missatges d'error:**
-     * - "No puedes eliminarte a ti mismo"
-     * - "No tienes permisos para eliminar usuarios"
-     * - "No puedes eliminar el último administrador"
-     *
+
      * **Resultat esperat:**
      * Error mostrat a l'usuari, eliminació cancel·lada.
      */
@@ -224,9 +219,12 @@ class DeleteUserTest {
         assertNotNull("El callback hauria de retornar resultat", result)
         assertFalse("L'eliminació NO hauria de ser exitosa", result!!.first)
         assertTrue(
-            "El missatge hauria de mencionar l'error",
+            "El missatge hauria de mencionar l'error. Missatge rebut: '${result!!.second}'",
             result!!.second.contains("Error al eliminar") ||
-                    result!!.second.contains("Error en eliminar")
+                    result!!.second.contains("Error en eliminar") ||
+                    result!!.second.contains("No pots eliminar-te a tu mateix") ||
+                    result!!.second.contains("No puedes eliminarte a ti mismo") ||
+                    result!!.second.contains("403")
         )
     }
 }

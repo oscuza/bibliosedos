@@ -38,9 +38,9 @@ data class AuthenticationRequest(
  * @property id Identificador únic de l'usuari a la base de dades
  * @property rol Rol de l'usuari (1=Usuari Normal, 2=Administrador)
  * @property nick Nom d'usuari (pot ser null en algunes respostes)
- * @property nombre Nom real de l'usuari (pot ser null)
- * @property apellido1 Primer cognom de l'usuari (pot ser null)
- * @property apellido2 Segon cognom de l'usuari (opcional, pot ser null)
+ * @property nom Nom real de l'usuari (pot ser null)
+ * @property cognom1 Primer cognom de l'usuari (pot ser null)
+ * @property cognom2 Segon cognom de l'usuari (opcional, pot ser null)
  *
  * @author Oscar
  * @since 1.0
@@ -52,9 +52,9 @@ data class AuthResponse(
     @SerializedName("id") val id: Long,
     @SerializedName("rol") val rol: Int,
     @SerializedName("nick") val nick: String?,
-    @SerializedName("nom") val nombre: String?,
-    @SerializedName("cognom1") val apellido1: String?,
-    @SerializedName("cognom2") val apellido2: String?
+    @SerializedName("nom") val nom: String?,
+    @SerializedName("cognom1") val cognom1: String?,
+    @SerializedName("cognom2") val cognom2: String?,
 )
 
 /**
@@ -63,14 +63,21 @@ data class AuthResponse(
  * Aquesta classe s'utilitza per representar usuaris ja existents al sistema.
  * Conté tota la informació personal i de rol d'un usuari.
  *
- * @property id Identificador únic de l'usuari (generat pel backend)
- * @property nick Nom d'usuari únic per identificar-se al sistema
- * @property nombre Nom real de l'usuari
- * @property apellido1 Primer cognom de l'usuari (pot ser null)
- * @property apellido2 Segon cognom de l'usuari (opcional, pot ser null)
- * @property rol Rol de l'usuari (1=Usuari Normal, 2=Administrador)
+ * Inclou tant els camps bàsics com els addicionals que són obligatoris al backend.
  *
- * @constructor Crea una nova instància d'User amb tots els camps
+ * @property id Identificador únic de l'usuari
+ * @property nick Nom d'usuari únic
+ * @property nom Nom real
+ * @property cognom1 Primer cognom
+ * @property cognom2 Segon cognom (opcional)
+ * @property rol Rol de l'usuari (1=Normal, 2=Administrador)
+ * @property nif NIF/DNI de l'usuari
+ * @property localitat Localitat de residència
+ * @property carrer Adreça/Carrer
+ * @property cp Codi postal
+ * @property provincia Província
+ * @property tlf Telèfon de contacte
+ * @property email Correu electrònic
  *
  * @author Oscar
  * @since 1.0
@@ -78,10 +85,19 @@ data class AuthResponse(
 data class User(
     @SerializedName("id") val id: Long,
     @SerializedName("nick") val nick: String,
-    @SerializedName("nom") val nombre: String,
-    @SerializedName("cognom1") val apellido1: String?,
-    @SerializedName("cognom2") val apellido2: String?,
-    @SerializedName("rol") val rol: Int
+    @SerializedName("nom") val nom: String,
+    @SerializedName("cognom1") val cognom1: String?,
+    @SerializedName("cognom2") val cognom2: String?,
+    @SerializedName("rol") val rol: Int,
+    // Camps adicionals que requereix el backend
+    @SerializedName("nif") val nif: String? = null,
+    @SerializedName("localitat") val localitat: String? = null,
+    @SerializedName("carrer") val carrer: String? = null,
+    @SerializedName("cp") val cp: String? = null,
+    @SerializedName("provincia") val provincia: String? = null,
+    @SerializedName("tlf") val tlf: String? = null,
+    @SerializedName("email") val email: String? = null,
+    @SerializedName("password") val password: String? = null
 ) {
     /**
      * Comprova si l'usuari és administrador.
@@ -105,42 +121,30 @@ data class User(
     val roleName: String
         get() = when (rol) {
             2 -> "Administrador"
-            1 -> "Usuario"
-            else -> "Desconocido"
+            1 -> "Usuari"
+            else -> "Desconegut"
         }
 }
 
 /**
- * Petició per crear un nou usuari al sistema.
+ * Petició per crear un nou usuari amb TOTS els camps obligatoris del backend.
  *
- * Aquesta classe ha de coincidir exactament amb RegisterRequest del backend.
- * Conté tots els camps necessaris i opcionals per crear un usuari nou.
+ * IMPORTANT: Tots aquests camps són OBLIGATORIS al backend i han de tenir un valor.
+ * Si no es proporcionen, el backend retornarà un error 400.
  *
- * **Camps Obligatoris:**
- * - nick: Nom d'usuari únic
- * - password: Contrasenya
- * - nombre: Nom real
- * - apellido1: Primer cognom
- * - rol: Rol de l'usuari
- *
- * **Camps Opcionals:**
- * Tots els altres camps són opcionals i poden ser null.
- *
- * @property nick Nom d'usuari únic (obligatori, 3-50 caràcters)
- * @property password Contrasenya (obligatori, mínim 6 caràcters)
- * @property nombre Nom real (obligatori, mínim 2 caràcters)
- * @property apellido1 Primer cognom (obligatori, mínim 2 caràcters)
- * @property rol Rol de l'usuari (obligatori: 1=Usuari Normal, 2=Administrador)
- * @property nif NIF/DNI de l'usuari (opcional)
- * @property apellido2 Segon cognom (opcional)
- * @property localitat Localitat de residència (opcional)
- * @property provincia Província de residència (opcional)
- * @property carrer Direcció/Carrer (opcional)
- * @property cp Codi postal (opcional)
- * @property tlf Telèfon de contacte (opcional)
- * @property email Email de contacte (opcional)
- *
- * @constructor Crea una petició de creació d'usuari amb camps obligatoris i opcionals
+ * @property nick Nom d'usuari únic (3-50 caràcters)
+ * @property password Contrasenya (mínim 6 caràcters)
+ * @property nom Nom real (mínim 2 caràcters)
+ * @property cognom1 Primer cognom (mínim 2 caràcters)
+ * @property rol Rol de l'usuari (1=Normal, 2=Admin)
+ * @property nif NIF/DNI (OBLIGATORI al backend)
+ * @property localitat Localitat (OBLIGATORI al backend)
+ * @property carrer Adreça (OBLIGATORI al backend)
+ * @property cp Codi postal (OBLIGATORI al backend)
+ * @property provincia Província (OBLIGATORI al backend)
+ * @property tlf Telèfon (OBLIGATORI al backend)
+ * @property email Correu electrònic (OBLIGATORI al backend)
+ * @property cognom2 Segon cognom (opcional)
  *
  * @author Oscar
  * @since 1.0
@@ -149,19 +153,61 @@ data class User(
 data class CreateUserRequest(
     @SerializedName("nick") val nick: String,
     @SerializedName("password") val password: String,
-    @SerializedName("nom") val nombre: String,
-    @SerializedName("cognom1") val apellido1: String,
+    @SerializedName("nom") val nom: String,
+    @SerializedName("cognom1") val cognom1: String,
     @SerializedName("rol") val rol: Int,
-    @SerializedName("nif") val nif: String? = null,
-    @SerializedName("cognom2") val apellido2: String? = null,
-    @SerializedName("localitat") val localitat: String? = null,
-    @SerializedName("provincia") val provincia: String? = null,
-    @SerializedName("carrer") val carrer: String? = null,
-    @SerializedName("cp") val cp: String? = null,
-    @SerializedName("tlf") val tlf: String? = null,
-    @SerializedName("email") val email: String? = null
-)
+    // Camps que són OBLIGATORIS al backend (no poden ser null)
+    @SerializedName("nif") val nif: String,
+    @SerializedName("localitat") val localitat: String,
+    @SerializedName("carrer") val carrer: String,
+    @SerializedName("cp") val cp: String,
+    @SerializedName("provincia") val provincia: String,
+    @SerializedName("tlf") val tlf: String,
+    @SerializedName("email") val email: String,
+    // Camp opcional
+    @SerializedName("cognom2") val cognom2: String? = null
 
+    )
+
+/**
+ * Petició per actualitzar un usuari existent amb TOTS els camps necessaris.
+ *
+ * IMPORTANT: El backend valida que tots aquests camps existeixin, per això
+ * hem de mantenir els valors existents dels camps que no es volen modificar.
+ *
+ * @property id Identificador de l'usuari
+ * @property nick Nom d'usuari
+ * @property nom Nom real
+ * @property cognom1 Primer cognom
+ * @property rol Rol de l'usuari
+ * @property nif NIF/DNI (mantenir l'existent si no es modifica)
+ * @property localitat Localitat (mantenir l'existent si no es modifica)
+ * @property carrer Adreça (mantenir l'existent si no es modifica)
+ * @property cp Codi postal (mantenir l'existent si no es modifica)
+ * @property provincia Província (mantenir l'existent si no es modifica)
+ * @property tlf Telèfon (mantenir l'existent si no es modifica)
+ * @property email Email (mantenir l'existent si no es modifica)
+ * @property cognom2 Segon cognom (opcional)
+ * @property password Contrasenya (no s'actualitza en edició normal)
+ */
+data class UpdateUserRequest(
+    @SerializedName("id") val id: Long,
+    @SerializedName("nick") val nick: String,
+    @SerializedName("nom") val nom: String,
+    @SerializedName("cognom1") val cognom1: String,
+    @SerializedName("rol") val rol: Int,
+    // Camps que el backend valida com obligatoris
+    @SerializedName("nif") val nif: String,
+    @SerializedName("localitat") val localitat: String,
+    @SerializedName("carrer") val carrer: String,
+    @SerializedName("cp") val cp: String,
+    @SerializedName("provincia") val provincia: String,
+    @SerializedName("tlf") val tlf: String,
+    @SerializedName("email") val email: String,
+    // Camps opcionals
+    @SerializedName("cognom2") val cognom2: String? = null,
+    @SerializedName("password") val password: String? = null
+)
 /**
  * Servei de API REST per a operacions d'autenticació i gestió d'usuaris.
  *
@@ -279,7 +325,7 @@ interface AuthApiService {
     @PUT("biblioteca/usuaris/actualitzarUsuari/{id}")
     suspend fun updateUser(
         @Path("id") userId: Long,
-        @Body user: User
+        @Body user: UpdateUserRequest,
     ): User
 
     /**

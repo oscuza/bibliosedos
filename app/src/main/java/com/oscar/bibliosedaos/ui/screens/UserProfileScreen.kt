@@ -178,10 +178,10 @@ fun UserProfileScreen(
                                 /**
                                  * Files d'informació amb format label: valor.
                                  */
-                                UserInfoRow("Nom", user.nombre)
+                                UserInfoRow("Nom", user.nom)
                                 UserInfoRow(
                                     "Cognoms",
-                                    "${user.apellido1 ?: ""} ${user.apellido2 ?: ""}".trim()
+                                    "${user.cognom1 ?: ""} ${user.cognom2 ?: ""}".trim()
                                 )
                                 UserInfoRow("ID", user.id.toString())
                                 UserInfoRow(

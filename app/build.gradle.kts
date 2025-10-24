@@ -92,6 +92,7 @@ dependencies {
 
     // ========== JWT (OPCIONAL - si quieres decodificar tokens en Android) ==========
     implementation("io.jsonwebtoken:jjwt-api:0.11.5")
+    implementation(libs.androidx.ui.text)
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.11.5")
     runtimeOnly("io.jsonwebtoken:jjwt-gson:0.11.5")
 

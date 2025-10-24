@@ -90,16 +90,49 @@ class UpdateUserProfileTest {
      * - Longituds de camp vàlides ✓
      */
     private class FakeAuthApiSuccess : AuthApiService {
-        override suspend fun updateUser(userId: Long, user: User): User {
+        override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User {
             // Retornar usuario actualitzat amb l'ID original
-            return user.copy(id = userId)
+            return User(
+                id = userId,
+                nick = user.nick,
+                nom = user.nom,
+                cognom1 = user.cognom1,
+                cognom2 = if (user.cognom2.isNullOrBlank()) null else user.cognom2,
+                rol = user.rol,
+                nif = user.nif,
+                carrer = user.carrer,
+                localitat = user.localitat,
+                provincia = user.provincia,
+                cp = user.cp,
+                tlf = user.tlf,
+                email = user.email
+            )
         }
 
-        override suspend fun login(request: AuthenticationRequest): AuthResponse = error("no utilitzat")
+        override suspend fun getUserById(userId: Long): User = User(
+            id = userId,
+            nick = "oldnick",
+            nom = "Old",
+            cognom1 = "One",
+            cognom2 = null,
+            rol = 1,
+            nif = "11111111Z",
+            carrer = "Carrer Antic",
+            localitat = "Barcelona",
+            provincia = "Barcelona",
+            cp = "08001",
+            tlf = "600000000",
+            email = "old@example.com"
+        )
+
+        override suspend fun login(request: AuthenticationRequest): AuthResponse =
+            error("no utilitzat")
+
         override suspend fun getAllUsers(): List<User> = error("no utilitzat")
-        override suspend fun getUserById(userId: Long): User = error("no utilitzat")
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
-        override suspend fun createUser(request: CreateUserRequest): AuthResponse = error("no utilitzat")
+        override suspend fun createUser(request: CreateUserRequest): AuthResponse =
+            error("no utilitzat")
+
         override suspend fun logout(): Response<String> = error("no utilitzat")
     }
 
@@ -124,15 +157,35 @@ class UpdateUserProfileTest {
      * ```
      */
     private class FakeAuthApiDuplicateNick : AuthApiService {
-        override suspend fun updateUser(userId: Long, user: User): User {
+
+        override suspend fun getUserById(userId: Long): User = User(
+            id = userId,
+            nick = "user1",
+            nom = "User",
+            cognom1 = "One",
+            cognom2 = null,
+            rol = 1,
+            nif = "22222222A",
+            carrer = "Carrer Prova",
+            localitat = "Barcelona",
+            provincia = "Barcelona",
+            cp = "08002",
+            tlf = "600111222",
+            email = "user1@example.com"
+        )
+
+        override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User {
             throw Exception("HTTP 409 Conflict - El nick ja està en ús")
         }
 
-        override suspend fun login(request: AuthenticationRequest): AuthResponse = error("no utilitzat")
+        override suspend fun login(request: AuthenticationRequest): AuthResponse =
+            error("no utilitzat")
+
         override suspend fun getAllUsers(): List<User> = error("no utilitzat")
-        override suspend fun getUserById(userId: Long): User = error("no utilitzat")
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
-        override suspend fun createUser(request: CreateUserRequest): AuthResponse = error("no utilitzat")
+        override suspend fun createUser(request: CreateUserRequest): AuthResponse =
+            error("no utilitzat")
+
         override suspend fun logout(): Response<String> = error("no utilitzat")
     }
 
@@ -175,9 +228,9 @@ class UpdateUserProfileTest {
         val updatedUser = User(
             id = 42,
             nick = "usuario_actualizado",
-            nombre = "Nombre Nuevo",
-            apellido1 = "Apellido1",
-            apellido2 = "Apellido2",
+            nom = "Nombre Nuevo",
+            cognom1 = "Apellido1",
+            cognom2 = "Apellido2",
             rol = 1
         )
 
@@ -233,9 +286,9 @@ class UpdateUserProfileTest {
         val updatedUser = User(
             id = 42,
             nick = "admin",  // Nick ja usat per un altre usuari
-            nombre = "Test",
-            apellido1 = "User",
-            apellido2 = null,
+            nom = "Test",
+            cognom1 = "User",
+            cognom2 = null,
             rol = 1
         )
 
@@ -287,9 +340,9 @@ class UpdateUserProfileTest {
         val updatedUser = User(
             id = 42,
             nick = "usuario_actualizado",
-            nombre = "Nombre Nuevo",
-            apellido1 = "Apellido1",
-            apellido2 = null,
+            nom = "Nombre Nuevo",
+            cognom1 = "Apellido1",
+            cognom2 = null,
             rol = 1
         )
 
@@ -309,12 +362,12 @@ class UpdateUserProfileTest {
         assertEquals(
             "El nombre hauria d'estar actualitzat",
             "Nombre Nuevo",
-            profileState.user?.nombre
+            profileState.user?.nom
         )
         assertEquals(
             "L'apellido1 hauria d'estar actualitzat",
             "Apellido1",
-            profileState.user?.apellido1
+            profileState.user?.cognom1
         )
     }
 }

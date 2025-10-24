@@ -106,12 +106,16 @@ class AuthInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         // 1. Obtenir la petició original
         val originalRequest = chain.request()
+        val path = originalRequest.url.encodedPath
+
+        val isAuthLogin = path.contains("/biblioteca/auth/login")
+        val isLogout = path.contains("/biblioteca/auth/logout")
 
         // 2. Consultar si existeix token al TokenManager
         val token = TokenManager.getToken()
 
         // 3. Crear nova petició amb o sense token
-        val request = if (token != null) {
+        val request = if (token != null && !isAuthLogin) {
             // Token existeix: afegir header d'autorització
             originalRequest.newBuilder()
                 .header("Authorization", "Bearer $token")
@@ -127,8 +131,9 @@ class AuthInterceptor : Interceptor {
         // 5. Gestió d'errors d'autenticació
         // Si rebem 401 (Unauthorized) o 403 (Forbidden)
         // i NO és la petició de logout
+
         if ((response.code == 401 || response.code == 403) &&
-            !originalRequest.url.toString().contains("logout")) {
+            !isAuthLogin) {
 
             // Registrar l'error per debugging
             android.util.Log.e(

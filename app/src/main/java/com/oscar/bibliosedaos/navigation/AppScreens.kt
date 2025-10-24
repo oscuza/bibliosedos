@@ -250,4 +250,10 @@ sealed class AppScreens(val route: String) {
      * @since 1.0
      */
     object BooksScreen : AppScreens("books_screen")
+
+    /**
+     * Pantalla de canvi de contrassenya
+     *
+     */
+    object ChangePasswordScreen : AppScreens("change_password")
 }
