@@ -3,8 +3,11 @@ package com.oscar.bibliosedaos.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,7 +26,7 @@ import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
 @Composable
 fun ChangePasswordScreen(
     navController: NavController,
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
 ) {
     // Estats per als camps
     var currentPassword by remember { mutableStateOf("") }
@@ -65,7 +68,7 @@ fun ChangePasswordScreen(
                 title = { Text("Canviar Contrasenya") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, "Tornar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Tornar")
                     }
                 }
             )
@@ -127,7 +130,9 @@ fun ChangePasswordScreen(
                         label = { Text("Contrasenya Actual*") },
                         leadingIcon = { Icon(Icons.Default.Lock, null) },
                         trailingIcon = {
-                            IconButton(onClick = { currentPasswordVisible = !currentPasswordVisible }) {
+                            IconButton(onClick = {
+                                currentPasswordVisible = !currentPasswordVisible
+                            }) {
                                 Icon(
                                     if (currentPasswordVisible) Icons.Default.VisibilityOff
                                     else Icons.Default.Visibility,
@@ -150,7 +155,7 @@ fun ChangePasswordScreen(
                         singleLine = true
                     )
 
-                    Divider()
+                    HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
 
                     // Nova contrasenya
                     OutlinedTextField(
@@ -175,16 +180,31 @@ fun ChangePasswordScreen(
                         supportingText = {
                             when {
                                 newPassword.isNotEmpty() && !isNewPasswordValid -> {
-                                    Text("Mínim 6 caràcters", color = MaterialTheme.colorScheme.error)
+                                    Text(
+                                        "Mínim 6 caràcters",
+                                        color = MaterialTheme.colorScheme.error
+                                    )
                                 }
+
                                 newPassword.isNotEmpty() && newPassword == currentPassword -> {
-                                    Text("La nova contrasenya ha de ser diferent", color = MaterialTheme.colorScheme.error)
+                                    Text(
+                                        "La nova contrasenya ha de ser diferent",
+                                        color = MaterialTheme.colorScheme.error
+                                    )
                                 }
+
                                 newPassword.isNotEmpty() && isPasswordStrong -> {
-                                    Text("✓ Contrasenya forta", color = MaterialTheme.colorScheme.primary)
+                                    Text(
+                                        "✓ Contrasenya forta",
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
                                 }
+
                                 newPassword.isNotEmpty() && isNewPasswordValid -> {
-                                    Text("Contrasenya acceptable", color = MaterialTheme.colorScheme.tertiary)
+                                    Text(
+                                        "Contrasenya acceptable",
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
                                 }
                             }
                         },
@@ -200,7 +220,9 @@ fun ChangePasswordScreen(
                         label = { Text("Confirmar Nova Contrasenya*") },
                         leadingIcon = { Icon(Icons.Default.CheckCircle, null) },
                         trailingIcon = {
-                            IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                            IconButton(onClick = {
+                                confirmPasswordVisible = !confirmPasswordVisible
+                            }) {
                                 Icon(
                                     if (confirmPasswordVisible) Icons.Default.VisibilityOff
                                     else Icons.Default.Visibility,
@@ -216,10 +238,17 @@ fun ChangePasswordScreen(
                         supportingText = {
                             when {
                                 confirmPassword.isNotEmpty() && !doPasswordsMatch -> {
-                                    Text("Les contrasenyes no coincideixen", color = MaterialTheme.colorScheme.error)
+                                    Text(
+                                        "Les contrasenyes no coincideixen",
+                                        color = MaterialTheme.colorScheme.error
+                                    )
                                 }
+
                                 confirmPassword.isNotEmpty() && doPasswordsMatch -> {
-                                    Text("✓ Les contrasenyes coincideixen", color = MaterialTheme.colorScheme.primary)
+                                    Text(
+                                        "✓ Les contrasenyes coincideixen",
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
                                 }
                             }
                         },
@@ -236,14 +265,17 @@ fun ChangePasswordScreen(
                                 style = MaterialTheme.typography.bodySmall
                             )
                             LinearProgressIndicator(
-                                progress = when {
-                                    newPassword.length >= 12 &&
-                                            newPassword.any { it.isDigit() } &&
-                                            newPassword.any { it.isLetter() } &&
-                                            newPassword.any { !it.isLetterOrDigit() } -> 1.0f
-                                    isPasswordStrong -> 0.7f
-                                    isNewPasswordValid -> 0.4f
-                                    else -> 0.2f
+                                progress = {
+                                    when {
+                                        newPassword.length >= 12 &&
+                                                newPassword.any { it.isDigit() } &&
+                                                newPassword.any { it.isLetter() } &&
+                                                newPassword.any { !it.isLetterOrDigit() } -> 1.0f
+
+                                        isPasswordStrong -> 0.7f
+                                        isNewPasswordValid -> 0.4f
+                                        else -> 0.2f
+                                    }
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -252,7 +284,9 @@ fun ChangePasswordScreen(
                                     isPasswordStrong -> MaterialTheme.colorScheme.primary
                                     isNewPasswordValid -> MaterialTheme.colorScheme.tertiary
                                     else -> MaterialTheme.colorScheme.error
-                                }
+                                },
+                                trackColor = ProgressIndicatorDefaults.linearTrackColor,
+                                strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
                             )
                         }
                     }
