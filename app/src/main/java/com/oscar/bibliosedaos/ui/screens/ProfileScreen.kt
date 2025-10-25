@@ -23,6 +23,8 @@ import com.oscar.bibliosedaos.data.network.TokenManager
 import com.oscar.bibliosedaos.navigation.AppScreens
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import com.oscar.bibliosedaos.data.network.User
 
 /**
  * Pantalla unificada de perfil d'usuari.
@@ -87,6 +89,7 @@ fun ProfileScreen(
     // Variable per gestionar el diàleg d'eliminar usuari (per admins)
     var showDeleteUserDialog by remember { mutableStateOf(false) }
 
+
     // ========== Càrrega del Perfil ==========
 
     /**
@@ -117,46 +120,40 @@ fun ProfileScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        if (userProfileState.user?.rol == 2) "Panell d'Administrador"
-                        else "El Meu Perfil"
-                    )
-                },
-                navigationIcon = {
-                    /**
-                     * Botó "Volver" només si NO és el propi perfil.
-                     * Permet als admins tornar a la llista després de veure
-                     * el perfil d'un altre usuari.
-                     */
-                    if (!isViewingOwnProfile) {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Tornar"
-                            )
-                        }
-                    }
-                },
-                actions = {
-                    /**
-                     * Botó de logout sempre visible.
-                     * Neteja el token i navega al login.
-                     */
-                    IconButton(onClick = {
-                        authViewModel.logout()
-                        navController.navigate(AppScreens.LoginScreen.route) {
-                            popUpTo(0) { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    }) {
-                        Icon(Icons.Default.ExitToApp, "Tancar Sessió")
+            TopAppBar(title = {
+                Text(
+                    if (userProfileState.user?.rol == 2) "Panell d'Administrador"
+                    else "El Meu Perfil"
+                )
+            }, navigationIcon = {
+                /**
+                 * Botó "Volver" només si NO és el propi perfil.
+                 * Permet als admins tornar a la llista després de veure
+                 * el perfil d'un altre usuari.
+                 */
+                if (!isViewingOwnProfile) {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Tornar"
+                        )
                     }
                 }
-            )
-        }
-    ) { paddingValues ->
+            }, actions = {
+                /**
+                 * Botó de logout sempre visible.
+                 * Neteja el token i navega al login.
+                 */
+                IconButton(onClick = {
+                    authViewModel.logout()
+                    navController.navigate(AppScreens.LoginScreen.route) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }) {
+                    Icon(Icons.Default.ExitToApp, "Tancar Sessió")
+                }
+            })
+        }) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -208,8 +205,7 @@ fun ProfileScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                            .padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         // ========== Card de Perfil ==========
 
@@ -233,8 +229,7 @@ fun ProfileScreen(
                          * Inclou: Editar Perfil, Canviar Contrasenya
                          */
                         SectionCard(
-                            title = "El Meu Compte",
-                            icon = Icons.Default.Person
+                            title = "El Meu Compte", icon = Icons.Default.Person
                         ) {
                             OptionItem(
                                 icon = Icons.Default.Edit,
@@ -242,8 +237,7 @@ fun ProfileScreen(
                                 subtitle = "Modificar dades personals",
                                 onClick = {
                                     navController.navigate(AppScreens.EditProfileScreen.route)
-                                }
-                            )
+                                })
 
                             HorizontalDivider()
 
@@ -254,12 +248,11 @@ fun ProfileScreen(
                                 onClick = {
                                     // Navegar a la pantalla de canviar contrasenya
                                     navController.navigate("change_password")
-                                }
-                            )
+                                })
                         }
 
                         // ========== Botó Restablir Contrasenya (només per admins veient altres perfils) ==========
-                        if (currentUserIsAdmin &&  !isViewingOwnProfile) {
+                        if (currentUserIsAdmin && !isViewingOwnProfile) {
                             Spacer(modifier = Modifier.height(8.dp))
 
                             OutlinedButton(
@@ -321,7 +314,13 @@ fun ProfileScreen(
                          */
                         if (currentUserIsAdmin) {
                             // Seccions per administradors
-                            AdminUserSection(navController, context)
+                            AdminUserSection(
+                                navController = navController,
+                                context = context,
+                                onDeleteClick = {
+                                    showDeleteUserDialog = true
+                                } // Passar el callback
+                            )
                         } else {
                             // Seccions per usuaris normals
                             NormalUserSection(navController, context)
@@ -337,106 +336,280 @@ fun ProfileScreen(
         var newPassword by remember { mutableStateOf("") }
         var confirmPassword by remember { mutableStateOf("") }
 
-        AlertDialog(
-            onDismissRequest = { showResetPasswordDialog = false },
-            title = {
-                Text("Restablir Contrasenya")
-            },
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text(
-                        "Estàs a punt de restablir la contrasenya de l'usuari ${userProfileState.user?.nick}",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+        AlertDialog(onDismissRequest = { showResetPasswordDialog = false }, title = {
+            Text("Restablir Contrasenya")
+        }, text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    "Estàs a punt de restablir la contrasenya de l'usuari ${userProfileState.user?.nick}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
 
-                    OutlinedTextField(
-                        value = newPassword,
-                        onValueChange = { newPassword = it },
-                        label = { Text("Nova Contrasenya") },
-                        visualTransformation = PasswordVisualTransformation(),
-                        isError = newPassword.isNotEmpty() && newPassword.length < 6,
-                        supportingText = {
-                            if (newPassword.isNotEmpty() && newPassword.length < 6) {
-                                Text("Mínim 6 caràcters")
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    OutlinedTextField(
-                        value = confirmPassword,
-                        onValueChange = { confirmPassword = it },
-                        label = { Text("Confirmar Contrasenya") },
-                        visualTransformation = PasswordVisualTransformation(),
-                        isError = confirmPassword.isNotEmpty() && confirmPassword != newPassword,
-                        supportingText = {
-                            if (confirmPassword.isNotEmpty() && confirmPassword != newPassword) {
-                                Text("Les contrasenyes no coincideixen")
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (newPassword.length >= 6 && newPassword == confirmPassword) {
-                            authViewModel.resetUserPassword(
-                                userId = userId,
-                                newPassword = newPassword,
-                                onResult = { success, message ->
-                                    if (success) {
-                                        showResetPasswordDialog = false
-                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                                    } else {
-                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                                    }
-                                }
-                            )
+                OutlinedTextField(
+                    value = newPassword,
+                    onValueChange = { newPassword = it },
+                    label = { Text("Nova Contrasenya") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    isError = newPassword.isNotEmpty() && newPassword.length < 6,
+                    supportingText = {
+                        if (newPassword.isNotEmpty() && newPassword.length < 6) {
+                            Text("Mínim 6 caràcters")
                         }
                     },
-                    enabled = newPassword.length >= 6 && newPassword == confirmPassword
-                ) {
-                    Text("RESTABLIR")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showResetPasswordDialog = false }) {
-                    Text("CANCEL·LAR")
-                }
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    label = { Text("Confirmar Contrasenya") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    isError = confirmPassword.isNotEmpty() && confirmPassword != newPassword,
+                    supportingText = {
+                        if (confirmPassword.isNotEmpty() && confirmPassword != newPassword) {
+                            Text("Les contrasenyes no coincideixen")
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
             }
-        )
+        }, confirmButton = {
+            TextButton(
+                onClick = {
+                    if (newPassword.length >= 6 && newPassword == confirmPassword) {
+                        authViewModel.resetUserPassword(
+                            userId = userId,
+                            newPassword = newPassword,
+                            onResult = { success, message ->
+                                if (success) {
+                                    showResetPasswordDialog = false
+                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                } else {
+                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                }
+                            })
+                    }
+                }, enabled = newPassword.length >= 6 && newPassword == confirmPassword
+            ) {
+                Text("RESTABLIR")
+            }
+        }, dismissButton = {
+            TextButton(onClick = { showResetPasswordDialog = false }) {
+                Text("CANCEL·LAR")
+            }
+        })
     }
 
     // ========== Diàleg d'Eliminació d'Usuari (Admins) ==========
     if (showDeleteUserDialog) {
+        var nifToDelete by remember { mutableStateOf("") }
         var confirmationText by remember { mutableStateOf("") }
-        val userToDelete = userProfileState.user
+        var userFound by remember { mutableStateOf<User?>(null) }
+        var isSearching by remember { mutableStateOf(false) }
+        var searchError by remember { mutableStateOf<String?>(null) }
+        var showConfirmation by remember { mutableStateOf(false) }
         val requiredText = "ELIMINAR"
+        val scope = rememberCoroutineScope()  // Per llançar coroutines dins del composable
 
-        AlertDialog(
-            onDismissRequest = { showDeleteUserDialog = false },
-            icon = {
+        // Observar l'estat de cerca
+        val userSearchState by authViewModel.userSearchState.collectAsState()
+
+        if (!showConfirmation) {
+            // PRIMER PAS: Demanar NIF de l'usuari a eliminar
+            AlertDialog(onDismissRequest = {
+                showDeleteUserDialog = false
+                nifToDelete = ""
+                userFound = null
+                searchError = null
+            }, icon = {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+            }, title = {
+                Text(
+                    "Eliminar Usuari", fontWeight = FontWeight.Bold
+                )
+            }, text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        "Introdueix el NIF/DNI de l'usuari que vols eliminar:",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+
+                    OutlinedTextField(
+                        value = nifToDelete,
+                        onValueChange = {
+                            nifToDelete = it.uppercase()
+                            searchError = null
+                        },
+                        label = { Text("NIF/DNI") },
+                        placeholder = { Text("12345678A") },
+                        isError = searchError != null,
+                        supportingText = {
+                            searchError?.let {
+                                Text(
+                                    it, color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        enabled = !isSearching
+                    )
+
+                    if (isSearching) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
+                    // Mostrar informació de l'usuari trobat
+                    userFound?.let { user ->
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer.copy(
+                                    alpha = 0.5f
+                                )
+                            ), modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    "✅ Usuari trobat:",
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                                Text("👤 Nick: ${user.nick}")
+                                Text("📛 Nom: ${user.nom} ${user.cognom1 ?: ""}")
+                                Text("🆔 ID: ${user.id}")
+                                Text("👥 Rol: ${if (user.rol == 2) "Administrador" else "Usuari"}")
+                            }
+                        }
+
+                        // Comprovació de seguretat: no pots eliminar-te a tu mateix
+                        if (user.id == currentUserId) {
+                            LaunchedEffect(Unit) {
+                                // Aquest bloc només s'executa si la condició és certa.
+                                // S'executa només una vegada gràcies a key=Unit.
+                                authViewModel.clearSearch()
+                            }
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer
+                                ), modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    "⚠️ No pots eliminar-te a tu mateix!",
+                                    modifier = Modifier.padding(12.dp),
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }, confirmButton = {
+                if (userFound == null) {
+                    // Botó de cercar
+                    Button(
+                        onClick = {
+                            if (nifToDelete.isNotBlank()) {
+                                isSearching = true
+                                searchError = null
+                                authViewModel.searchUserByNif(nifToDelete) // Iniciar cerca
+                            }
+                        }, enabled = nifToDelete.isNotBlank() && !isSearching
+                    ) {
+                        if (isSearching) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        } else {
+                            Text("Cercar Usuari")
+                        }
+                    }
+
+                    // Efecte per observar el resultat de la cerca
+                    LaunchedEffect(userSearchState) {
+                        if (userSearchState.hasSearched && !userSearchState.isSearching) {
+                            isSearching = false
+                            if (userSearchState.searchResult != null) {
+                                userFound = userSearchState.searchResult
+                                searchError = null
+                            } else {
+                                searchError = userSearchState.error
+                                    ?: "No s'ha trobat cap usuari amb aquest NIF"
+                            }
+                        }
+                    }
+                } else {
+                    // Botó de procedir a eliminar
+                    Button(
+                        onClick = {
+                            if (userFound!!.id != currentUserId) {
+                                authViewModel.clearSearch()
+                                showConfirmation = true
+                            }
+                        },
+                        enabled = userFound!!.id != currentUserId,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Procedir a Eliminar")
+                    }
+                }
+            }, dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteUserDialog = false
+                        nifToDelete = ""
+                        userFound = null
+                        searchError = null
+                    }) {
+                    Text("Cancel·lar")
+                }
+            })
+        } else {
+            // SEGON PAS: Confirmar eliminació
+            AlertDialog(onDismissRequest = {
+                showConfirmation = false
+                confirmationText = ""
+            }, icon = {
                 Icon(
                     Icons.Default.Warning,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(48.dp)
                 )
-            },
-            title = {
+            }, title = {
                 Text(
-                    "⚠️ Eliminar Usuari",
+                    "⚠️ Confirmar Eliminació",
                     color = MaterialTheme.colorScheme.error,
                     fontWeight = FontWeight.Bold
                 )
-            },
-            text = {
+            }, text = {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -456,11 +629,11 @@ fun ProfileScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                "👤 ${userToDelete?.nick ?: ""}",
-                                fontWeight = FontWeight.Bold
+                                "👤 ${userFound?.nick ?: ""}", fontWeight = FontWeight.Bold
                             )
-                            Text("📛 ${userToDelete?.nom ?: ""} ${userToDelete?.cognom1 ?: ""}")
-                            Text("🆔 ID: ${userToDelete?.id ?: ""}")
+                            Text("📛 ${userFound?.nom ?: ""} ${userFound?.cognom1 ?: ""}")
+                            Text("🆔 ID: ${userFound?.id ?: ""}")
+                            Text("📄 NIF: ${userFound?.nif ?: ""}")
                         }
                     }
 
@@ -493,57 +666,73 @@ fun ProfileScreen(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = if (confirmationText == requiredText)
-                                MaterialTheme.colorScheme.error
-                            else
-                                MaterialTheme.colorScheme.primary
+                            focusedBorderColor = if (confirmationText == requiredText) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.primary
                         )
                     )
                 }
-            },
-            confirmButton = {
+            }, confirmButton = {
+
                 Button(
                     onClick = {
-                        authViewModel.deleteUser(
-                            userId = userId,
-                            onResult = { success, message ->
-                                if (success) {
-                                    showDeleteUserDialog = false
-                                    Toast.makeText(
-                                        context,
-                                        "✅ $message",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                    // Simplement tornar enrere, eliminant aquesta pantalla de la pila
-                                    navController.popBackStack()
-                                } else {
-                                    Toast.makeText(
-                                        context,
-                                        "❌ $message",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            }
-                        )
+                        userFound?.let { user ->
+                            authViewModel.deleteUser(
+                                userId = user.id, onResult = { success, message ->
+                                    if (success) {
+                                        showDeleteUserDialog = false
+                                        showConfirmation = false
+                                        Toast.makeText(
+                                            context, "✅ $message", Toast.LENGTH_LONG
+                                        ).show()
+                                        userFound = null
+                                        nifToDelete = ""
+                                        // 1. Obtenir l'ID de l'usuari actiu (l'administrador)
+                                        val currentUserId =
+                                            authViewModel.loginUiState.value.authResponse?.id ?: 0L
+
+                                        // 2. Netejar la pila fins a la Home de l'Admin
+                                        navController.popBackStack(
+                                            route = AppScreens.AdminHomeScreen.route,
+                                            inclusive = false // Manté AdminHomeScreen
+                                        )
+
+                                        // 3. Navegar al perfil de l'usuari actiu (l'administrador)
+                                        navController.navigate(
+                                            AppScreens.UserProfileScreen.route.replace(
+                                                    "{userId}",
+                                                    currentUserId.toString()
+                                                )
+                                        ) {
+                                            // Assegura que no es creen múltiples instàncies
+                                            launchSingleTop = true
+                                        }
+                                    } else {
+                                        Toast.makeText(
+                                            context, "❌ $message", Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                })
+                        }
                     },
                     enabled = confirmationText == requiredText,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                        containerColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Icon(Icons.Default.DeleteForever, contentDescription = null)
+                    Icon(Icons.Default.Delete, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("ELIMINAR PERMANENTMENT")
+                    Text("ELIMINAR DEFINITIVAMENT")
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteUserDialog = false }) {
-                    Text("CANCEL·LAR")
+            }, dismissButton = {
+                TextButton(
+                    onClick = {
+                        showConfirmation = false
+                        confirmationText = ""
+                    }) {
+                    Text("Tornar")
                 }
-            },
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+            })
+        }
     }
 }
 
@@ -571,6 +760,7 @@ fun ProfileScreen(
 fun AdminUserSection(
     navController: NavController,
     context: android.content.Context,
+    onDeleteClick: () -> Unit = {}, // Nou paràmetre per gestionar el clic d'eliminar
 ) {
     // ========== Gestió d'Usuaris ==========
 
@@ -589,8 +779,7 @@ fun AdminUserSection(
             subtitle = "Gestionar usuaris del sistema",
             onClick = {
                 navController.navigate(AppScreens.AdminHomeScreen.route)
-            }
-        )
+            })
 
         HorizontalDivider()
 
@@ -600,8 +789,7 @@ fun AdminUserSection(
             subtitle = "Registrar nou usuari",
             onClick = {
                 navController.navigate(AppScreens.AddUserScreen.route)
-            }
-        )
+            })
 
 
 
@@ -613,22 +801,15 @@ fun AdminUserSection(
             subtitle = "Trobar usuari pel seu NIF o per la seva ID",
             onClick = {
                 navController.navigate(AppScreens.UserSearchScreen.route)
-            }
-        )
+            })
 
         HorizontalDivider()
 
         OptionItem(
             icon = Icons.Default.DeleteSweep,
             title = "Eliminar Usuari",
-            subtitle = "Funcionalitat disponible properament",
-            onClick = {
-                Toast.makeText(
-                    context,
-                    "Funcionalitat disponible properament",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
+            subtitle = "Eliminar un usuari del sistema",
+            onClick = onDeleteClick // Utilitzar el callback passat com a paràmetre
         )
 
         HorizontalDivider()
@@ -639,12 +820,9 @@ fun AdminUserSection(
             subtitle = "Funcionalitat disponible properament",
             onClick = {
                 Toast.makeText(
-                    context,
-                    "Funcionalitat disponible properament",
-                    Toast.LENGTH_SHORT
+                    context, "Funcionalitat disponible properament", Toast.LENGTH_SHORT
                 ).show()
-            }
-        )
+            })
     }
 
     // ========== Panel d'Administració Completa ==========
@@ -654,19 +832,16 @@ fun AdminUserSection(
      * Obre el navegador amb l'URL del panell d'administració.
      */
     SectionCard(
-        title = "Administració Completa",
-        icon = Icons.Default.Computer
+        title = "Administració Completa", icon = Icons.Default.Computer
     ) {
         OptionItem(
             icon = Icons.Default.OpenInBrowser,
             title = "Obrir Panell Web",
             subtitle = "Accedir a totes les funcions administratives",
             onClick = {
-                val intent =
-                    Intent(Intent.ACTION_VIEW, Uri.parse("http://localhost:8080/admin"))
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://localhost:8080/admin"))
                 context.startActivity(intent)
-            }
-        )
+            })
     }
 }
 
@@ -719,8 +894,7 @@ fun NormalUserSection(
             onClick = {
                 // TODO: REQ 4 - Implementar MyLoansScreen
                 Toast.makeText(context, "Funcionalitat pendent", Toast.LENGTH_SHORT).show()
-            }
-        )
+            })
 
         HorizontalDivider()
 
@@ -731,8 +905,7 @@ fun NormalUserSection(
             onClick = {
                 // TODO: REQ 4 - Implementar MyReservationsScreen
                 Toast.makeText(context, "Funcionalitat pendent", Toast.LENGTH_SHORT).show()
-            }
-        )
+            })
 
         HorizontalDivider()
 
@@ -743,15 +916,13 @@ fun NormalUserSection(
             onClick = {
                 // TODO: REQ 4 - Implementar LoanHistoryScreen
                 Toast.makeText(context, "Funcionalitat pendent", Toast.LENGTH_SHORT).show()
-            }
-        )
+            })
     }
 
     // ========== Sistema de Ressenyes ==========
 
     SectionCard(
-        title = "Les Meves Ressenyes",
-        icon = Icons.Default.Star
+        title = "Les Meves Ressenyes", icon = Icons.Default.Star
     ) {
         OptionItem(
             icon = Icons.Default.RateReview,
@@ -760,8 +931,7 @@ fun NormalUserSection(
             onClick = {
                 // TODO: REQ 6 - Implementar MyReviewsScreen
                 Toast.makeText(context, "Funcionalitat pendent", Toast.LENGTH_SHORT).show()
-            }
-        )
+            })
 
         HorizontalDivider()
 
@@ -772,8 +942,7 @@ fun NormalUserSection(
             onClick = {
                 // TODO: REQ 6 - Implementar PendingReviewsScreen
                 Toast.makeText(context, "Funcionalitat pendent", Toast.LENGTH_SHORT).show()
-            }
-        )
+            })
 
         HorizontalDivider()
 
@@ -784,15 +953,13 @@ fun NormalUserSection(
             onClick = {
                 // TODO: REQ 6 - Implementar PopularBooksScreen
                 Toast.makeText(context, "Funcionalitat pendent", Toast.LENGTH_SHORT).show()
-            }
-        )
+            })
     }
 
     // ========== Centre de Notificacions ==========
 
     SectionCard(
-        title = "Notificacions",
-        icon = Icons.Default.Notifications
+        title = "Notificacions", icon = Icons.Default.Notifications
     ) {
         OptionItem(
             icon = Icons.Default.Schedule,
@@ -801,8 +968,7 @@ fun NormalUserSection(
             onClick = {
                 // TODO: REQ 8 - Implementar ReturnRemindersScreen
                 Toast.makeText(context, "Funcionalitat pendent", Toast.LENGTH_SHORT).show()
-            }
-        )
+            })
 
         HorizontalDivider()
 
@@ -813,8 +979,7 @@ fun NormalUserSection(
             onClick = {
                 // TODO: REQ 8 - Implementar MyNotificationsScreen
                 Toast.makeText(context, "Funcionalitat pendent", Toast.LENGTH_SHORT).show()
-            }
-        )
+            })
     }
 }
 
@@ -910,10 +1075,8 @@ fun ProfileCard(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isAdmin)
-                MaterialTheme.colorScheme.errorContainer
-            else
-                MaterialTheme.colorScheme.primaryContainer
+            containerColor = if (isAdmin) MaterialTheme.colorScheme.errorContainer
+            else MaterialTheme.colorScheme.primaryContainer
         )
     ) {
         Column(
@@ -930,10 +1093,8 @@ fun ProfileCard(
                 if (isAdmin) Icons.Default.AdminPanelSettings else Icons.Default.Person,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = if (isAdmin)
-                    MaterialTheme.colorScheme.onErrorContainer
-                else
-                    MaterialTheme.colorScheme.onPrimaryContainer
+                tint = if (isAdmin) MaterialTheme.colorScheme.onErrorContainer
+                else MaterialTheme.colorScheme.onPrimaryContainer
             )
 
             /**
@@ -943,10 +1104,8 @@ fun ProfileCard(
                 text = nick,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = if (isAdmin)
-                    MaterialTheme.colorScheme.onErrorContainer
-                else
-                    MaterialTheme.colorScheme.onPrimaryContainer
+                color = if (isAdmin) MaterialTheme.colorScheme.onErrorContainer
+                else MaterialTheme.colorScheme.onPrimaryContainer
             )
 
             /**
@@ -955,20 +1114,16 @@ fun ProfileCard(
             Text(
                 text = "$nombre $apellido1 $apellido2".trim(),
                 style = MaterialTheme.typography.bodyLarge,
-                color = if (isAdmin)
-                    MaterialTheme.colorScheme.onErrorContainer
-                else
-                    MaterialTheme.colorScheme.onPrimaryContainer
+                color = if (isAdmin) MaterialTheme.colorScheme.onErrorContainer
+                else MaterialTheme.colorScheme.onPrimaryContainer
             )
 
             /**
              * Badge amb el rol.
              */
             Badge(
-                containerColor = if (isAdmin)
-                    MaterialTheme.colorScheme.error
-                else
-                    MaterialTheme.colorScheme.primary
+                containerColor = if (isAdmin) MaterialTheme.colorScheme.error
+                else MaterialTheme.colorScheme.primary
             ) {
                 Text(
                     text = if (isAdmin) "ADMINISTRADOR" else "USUARI",
@@ -983,10 +1138,8 @@ fun ProfileCard(
             Text(
                 text = "ID: $userId",
                 style = MaterialTheme.typography.bodySmall,
-                color = if (isAdmin)
-                    MaterialTheme.colorScheme.onErrorContainer
-                else
-                    MaterialTheme.colorScheme.onPrimaryContainer
+                color = if (isAdmin) MaterialTheme.colorScheme.onErrorContainer
+                else MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
     }
@@ -1015,24 +1168,18 @@ fun OptionItem(
     onClick: () -> Unit,
 ) {
     ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = {
-            Text(subtitle, style = MaterialTheme.typography.bodySmall)
-        },
-        leadingContent = {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-        },
-        trailingContent = {
-            Icon(
-                Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        },
-        modifier = Modifier.clickable(onClick = onClick)
+        headlineContent = { Text(title) }, supportingContent = {
+        Text(subtitle, style = MaterialTheme.typography.bodySmall)
+    }, leadingContent = {
+        Icon(
+            icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary
+        )
+    }, trailingContent = {
+        Icon(
+            Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }, modifier = Modifier.clickable(onClick = onClick)
     )
 }

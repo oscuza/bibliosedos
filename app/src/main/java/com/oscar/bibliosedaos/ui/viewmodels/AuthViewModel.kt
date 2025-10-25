@@ -352,6 +352,7 @@ class AuthViewModel(
                 if (response.isSuccessful) {
                     // Refrescar la llista després d'eliminar
                     loadAllUsers()
+                    clearUserProfileState()
                     onResult(true, "Usuari eliminat correctament")
                 } else {
                     // Error del servidor
@@ -788,5 +789,15 @@ class AuthViewModel(
      */
     fun clearSearch() {
         _userSearchState.value = UserSearchState()
+    }
+
+    /**
+     * Neteja l'estat del perfil d'usuari (UserProfileState),
+     * eliminant les dades de l'usuari actual o de l'usuari cercat.
+     * * @author Oscar
+     * @since 1.0
+     */
+    fun clearUserProfileState() {
+        _userProfileState.value = UserProfileState(isLoading = true)
     }
 }
