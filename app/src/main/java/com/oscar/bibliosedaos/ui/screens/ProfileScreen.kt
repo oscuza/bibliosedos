@@ -9,6 +9,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,7 +26,6 @@ import com.oscar.bibliosedaos.data.network.TokenManager
 import com.oscar.bibliosedaos.navigation.AppScreens
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import com.oscar.bibliosedaos.data.network.User
 
 /**
@@ -150,7 +152,7 @@ fun ProfileScreen(
                         launchSingleTop = true
                     }
                 }) {
-                    Icon(Icons.Default.ExitToApp, "Tancar Sessió")
+                    Icon(Icons.AutoMirrored.Filled.ExitToApp, "Tancar Sessió")
                 }
             })
         }) { paddingValues ->
@@ -413,7 +415,6 @@ fun ProfileScreen(
         var searchError by remember { mutableStateOf<String?>(null) }
         var showConfirmation by remember { mutableStateOf(false) }
         val requiredText = "ELIMINAR"
-        val scope = rememberCoroutineScope()  // Per llançar coroutines dins del composable
 
         // Observar l'estat de cerca
         val userSearchState by authViewModel.userSearchState.collectAsState()
@@ -884,7 +885,7 @@ fun NormalUserSection(
 
     SectionCard(
         title = "Els Meus Préstecs",
-        icon = Icons.Default.MenuBook,
+        icon = Icons.AutoMirrored.Filled.MenuBook,
         containerColor = MaterialTheme.colorScheme.primaryContainer
     ) {
         OptionItem(
@@ -947,7 +948,7 @@ fun NormalUserSection(
         HorizontalDivider()
 
         OptionItem(
-            icon = Icons.Default.TrendingUp,
+            icon = Icons.AutoMirrored.Filled.TrendingUp,
             title = "Ressenyes Populars",
             subtitle = "Veure llibres més ben valorats",
             onClick = {
