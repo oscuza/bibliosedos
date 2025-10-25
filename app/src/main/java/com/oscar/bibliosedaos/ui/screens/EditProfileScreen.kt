@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.oscar.bibliosedaos.navigation.AppScreens
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
 
 
@@ -371,7 +372,20 @@ fun EditProfileScreen(
                                     isSaving = false
                                     saveMessage = message
                                     if (success) {
-                                        navController.popBackStack()
+
+                                        val currentUserId = authViewModel.loginUiState.value.authResponse?.id ?: 0L
+
+                                        navController.navigate(
+                                            AppScreens.UserProfileScreen.route
+                                                .replace("{userId}", currentUserId.toString())
+                                        ) {
+                                            // Neteja la pila fins a AdminHomeScreen (que és d'on ve l'accés)
+                                            popUpTo(AppScreens.AdminHomeScreen.route) {
+                                                inclusive = true
+                                            }
+                                            launchSingleTop = true
+                                        }
+
                                     }
                                 }
                             )

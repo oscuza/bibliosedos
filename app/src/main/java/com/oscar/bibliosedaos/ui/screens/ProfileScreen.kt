@@ -91,7 +91,8 @@ fun ProfileScreen(
     // Variable per gestionar el diàleg d'eliminar usuari (per admins)
     var showDeleteUserDialog by remember { mutableStateOf(false) }
 
-
+    //Variable per gestionar el diàleg d'actualitzar usuari (per admins)
+    var showUpdateUserDialog by remember { mutableStateOf(false) }
     // ========== Càrrega del Perfil ==========
 
     /**
@@ -277,10 +278,9 @@ fun ProfileScreen(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("RESTABLIR CONTRASENYA D'AQUEST USUARI")
                             }
-                        }
 
-                        // ========== Botó Eliminar Usuari (només per admins veient altres perfils) ==========
-                        if (currentUserIsAdmin && !isViewingOwnProfile) {
+                            // ========== Botó Eliminar Usuari (només per admins veient altres perfils) ==========
+
                             Spacer(modifier = Modifier.height(8.dp))
 
                             OutlinedButton(
@@ -307,6 +307,33 @@ fun ProfileScreen(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("ELIMINAR AQUEST USUARI")
                             }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            //  NOU BOTÓ: EDITAR DADES D'AQUEST USUARI
+                            OutlinedButton(
+                                onClick = {
+                                    // 1. L'usuari ja està carregat en userProfileState.user
+
+                                    // 2. NAVEGAR DIRECTAMENT A LA PANTALLA D'EDICIÓ
+                                    navController.navigate(AppScreens.EditProfileScreen.route)
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 0.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.primary // Utilitzar color primari
+                                ),
+                                border = ButtonDefaults.outlinedButtonBorder
+                            ) {
+                                Icon(
+                                    Icons.Default.Edit,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("EDITAR DADES D'AQUEST USUARI")
+                            }
                         }
 
                         // ========== Seccions segons el rol de l'usuari ==========
@@ -321,7 +348,10 @@ fun ProfileScreen(
                                 context = context,
                                 onDeleteClick = {
                                     showDeleteUserDialog = true
-                                } // Passar el callback
+                                },// Passar el callback
+                                onUpdateClick = {
+                                    showUpdateUserDialog = true
+                                }//Passar el callback per actualitzar
                             )
                         } else {
                             // Seccions per usuaris normals
@@ -584,6 +614,7 @@ fun ProfileScreen(
             }, dismissButton = {
                 TextButton(
                     onClick = {
+                        authViewModel.clearSearch()
                         showDeleteUserDialog = false
                         nifToDelete = ""
                         userFound = null
@@ -700,9 +731,9 @@ fun ProfileScreen(
                                         // 3. Navegar al perfil de l'usuari actiu (l'administrador)
                                         navController.navigate(
                                             AppScreens.UserProfileScreen.route.replace(
-                                                    "{userId}",
-                                                    currentUserId.toString()
-                                                )
+                                                "{userId}",
+                                                currentUserId.toString()
+                                            )
                                         ) {
                                             // Assegura que no es creen múltiples instàncies
                                             launchSingleTop = true
@@ -735,6 +766,127 @@ fun ProfileScreen(
             })
         }
     }
+
+    // ========== Diàleg d'Actualització d'Usuari per NIF (Admins) ==========
+    if (showUpdateUserDialog) {
+        var nifToSearch by remember { mutableStateOf("") }
+        val userSearchState by authViewModel.userSearchState.collectAsState()
+        var isSearching by remember { mutableStateOf(false) }
+        var searchError by remember { mutableStateOf<String?>(null) }
+        val scope = rememberCoroutineScope()
+
+        AlertDialog(
+            onDismissRequest = {
+                showUpdateUserDialog = false
+                authViewModel.clearSearch()
+                nifToSearch = ""
+            },
+            icon = {
+                Icon(
+                    Icons.Default.ManageAccounts,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.size(48.dp)
+                )
+            },
+            title = {
+                Text("Actualitzar Usuari per NIF", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        "Introdueix el NIF de l'usuari que vols editar:",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+
+                    OutlinedTextField(
+                        value = nifToSearch,
+                        onValueChange = {
+                            nifToSearch = it.uppercase()
+                            searchError = null
+                        },
+                        label = { Text("NIF/DNI") },
+                        placeholder = { Text("12345678A") },
+                        isError = searchError != null,
+                        supportingText = {
+                            searchError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        enabled = !isSearching
+                    )
+
+                    if (isSearching) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (nifToSearch.isNotBlank()) {
+                            isSearching = true
+                            searchError = null
+                            authViewModel.searchUserByNif(nifToSearch)
+                        }
+                    },
+                    enabled = nifToSearch.isNotBlank() && !isSearching
+                ) {
+                    Text(if (isSearching) "Cercant..." else "Cercar Usuari")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showUpdateUserDialog = false
+                    authViewModel.clearSearch()
+                    nifToSearch = ""
+                }) {
+                    Text("Cancel·lar")
+                }
+            }
+        )
+
+        // Efecte per observar el resultat de la cerca i navegar
+        LaunchedEffect(userSearchState) {
+            if (userSearchState.hasSearched && !userSearchState.isSearching) {
+                isSearching = false
+                if (userSearchState.searchResult != null) {
+                    // Usuari trobat!
+                    val user = userSearchState.searchResult!!
+
+                    // 1. Netejar l'estat de cerca global
+                    authViewModel.clearSearch()
+
+                    // 2. Tancar el diàleg
+                    showUpdateUserDialog = false
+
+
+                    // 3. NAVEGAR A EDIT PROFILE
+                    navController.navigate(AppScreens.UserProfileScreen.createRoute(user.id))
+
+                    // Nota: ProfileScreen cridarà automàticament a loadUserProfile(user.id),
+                    // i des d'allà l'administrador podrà navegar a EditProfileScreen.route.
+                    // (ProfileScreen ha de tenir l'opció 'Editar Perfil')
+
+
+                    Toast.makeText(
+                        context,
+                        "Usuari ${user.nick} trobat. Obrint perfil...",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    // Usuari no trobat o error
+                    searchError =
+                        userSearchState.error ?: "No s'ha trobat cap usuari amb aquest NIF"
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -762,6 +914,7 @@ fun AdminUserSection(
     navController: NavController,
     context: android.content.Context,
     onDeleteClick: () -> Unit = {}, // Nou paràmetre per gestionar el clic d'eliminar
+    onUpdateClick: () -> Unit = {},
 ) {
     // ========== Gestió d'Usuaris ==========
 
@@ -798,7 +951,7 @@ fun AdminUserSection(
 
         OptionItem(
             icon = Icons.Default.Badge,
-            title = "Cercar per Usuaris",
+            title = "Cercar d'Usuaris",
             subtitle = "Trobar usuari pel seu NIF o per la seva ID",
             onClick = {
                 navController.navigate(AppScreens.UserSearchScreen.route)
@@ -815,15 +968,7 @@ fun AdminUserSection(
 
         HorizontalDivider()
 
-        OptionItem(
-            icon = Icons.Default.Update,
-            title = "Actualitzar Usuari",
-            subtitle = "Funcionalitat disponible properament",
-            onClick = {
-                Toast.makeText(
-                    context, "Funcionalitat disponible properament", Toast.LENGTH_SHORT
-                ).show()
-            })
+
     }
 
     // ========== Panel d'Administració Completa ==========
@@ -1170,17 +1315,17 @@ fun OptionItem(
 ) {
     ListItem(
         headlineContent = { Text(title) }, supportingContent = {
-        Text(subtitle, style = MaterialTheme.typography.bodySmall)
-    }, leadingContent = {
-        Icon(
-            icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary
-        )
-    }, trailingContent = {
-        Icon(
-            Icons.Default.ChevronRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }, modifier = Modifier.clickable(onClick = onClick)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall)
+        }, leadingContent = {
+            Icon(
+                icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary
+            )
+        }, trailingContent = {
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }, modifier = Modifier.clickable(onClick = onClick)
     )
 }
