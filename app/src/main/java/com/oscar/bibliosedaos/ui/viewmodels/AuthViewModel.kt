@@ -69,6 +69,28 @@ data class UserProfileState(
 )
 
 /**
+ * Estat per a la cerca d'usuaris.
+ * Data class que encapsula l'estat de la cerca d'usuaris per ID o NIF.
+ *
+ * @property isSearching Indica si s'està realitzant una cerca
+ * @property searchResult Usuari trobat (null si no s'ha trobat)
+ * @property error Missatge d'error en cas de fallada
+ * @property hasSearched Indica si s'ha realitzat almenys una cerca
+ *
+ * @author Oscar
+ * @since 1.0
+ * @see AuthViewModel.searchUserById
+ * @see AuthViewModel.searchUserByNif
+ */
+data class UserSearchState(
+    val isSearching: Boolean = false,
+    val searchResult: User? = null,
+    val error: String? = null,
+    val hasSearched: Boolean = false
+)
+
+
+/**
  * ViewModel principal per gestionar l'autenticació i operacions CRUD d'usuaris.
  *
  * Implementa el patró MVVM i proporciona funcions per:
@@ -115,6 +137,13 @@ class AuthViewModel(
      */
     private val _userProfileState = MutableStateFlow(UserProfileState())
     val userProfileState: StateFlow<UserProfileState> = _userProfileState.asStateFlow()
+
+    /**
+     * Estat observable de la cerca d'usuaris.
+     * Utilitzat per UserSearchScreen per mostrar resultats de cerca.
+     */
+    private val _userSearchState = MutableStateFlow(UserSearchState())
+    val userSearchState: StateFlow<UserSearchState> = _userSearchState.asStateFlow()
 
     /**
      * Inicia sessió al sistema amb les credencials proporcionades.
@@ -647,5 +676,117 @@ class AuthViewModel(
                 onResult(false, errorMessage)
             }
         }
+    }
+
+    /**
+     * Cerca un usuari pel seu ID.
+     *
+     * Procés:
+     * 1. Valida que l'ID sigui vàlid (> 0)
+     * 2. Fa la petició al servidor
+     * 3. Actualitza userSearchState amb el resultat
+     *
+     * @param userId ID de l'usuari a cercar (com a String per facilitar input)
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see AuthApiService.getUserById
+     */
+    fun searchUserById(userId: String) {
+        viewModelScope.launch {
+            // Validar que sigui un número vàlid
+            val id = userId.toLongOrNull()
+            if (id == null || id <= 0) {
+                _userSearchState.value = UserSearchState(
+                    isSearching = false,
+                    error = "ID invàlid. Ha de ser un número positiu",
+                    hasSearched = true
+                )
+                return@launch
+            }
+
+            _userSearchState.value = UserSearchState(isSearching = true)
+
+            try {
+                val user = api.getUserById(id)
+                _userSearchState.value = UserSearchState(
+                    isSearching = false,
+                    searchResult = user,
+                    hasSearched = true
+                )
+            } catch (e: Exception) {
+                val errorMessage = when {
+                    e.message?.contains("404") == true -> "No s'ha trobat cap usuari amb ID $id"
+                    e.message?.contains("401") == true -> "Sessió expirada. Torna a iniciar sessió"
+                    e.message?.contains("403") == true -> "No tens permisos per cercar usuaris"
+                    else -> "Error de cerca: ${e.message}"
+                }
+                _userSearchState.value = UserSearchState(
+                    isSearching = false,
+                    error = errorMessage,
+                    hasSearched = true
+                )
+            }
+        }
+    }
+
+    /**
+     * Cerca un usuari pel seu NIF/DNI.
+     *
+     * Procés:
+     * 1. Valida que el NIF no estigui buit
+     * 2. Fa la petició al servidor
+     * 3. Actualitza userSearchState amb el resultat
+     *
+     * @param nif NIF/DNI de l'usuari a cercar
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see AuthApiService.getUserByNif
+     */
+    fun searchUserByNif(nif: String) {
+        viewModelScope.launch {
+            if (nif.isBlank()) {
+                _userSearchState.value = UserSearchState(
+                    isSearching = false,
+                    error = "El NIF no pot estar buit",
+                    hasSearched = true
+                )
+                return@launch
+            }
+
+            _userSearchState.value = UserSearchState(isSearching = true)
+
+            try {
+                val user = api.getUserByNif(nif.trim())
+                _userSearchState.value = UserSearchState(
+                    isSearching = false,
+                    searchResult = user,
+                    hasSearched = true
+                )
+            } catch (e: Exception) {
+                val errorMessage = when {
+                    e.message?.contains("404") == true -> "No s'ha trobat cap usuari amb NIF $nif"
+                    e.message?.contains("401") == true -> "Sessió expirada. Torna a iniciar sessió"
+                    e.message?.contains("403") == true -> "No tens permisos per cercar usuaris"
+                    else -> "Error de cerca: ${e.message}"
+                }
+                _userSearchState.value = UserSearchState(
+                    isSearching = false,
+                    error = errorMessage,
+                    hasSearched = true
+                )
+            }
+        }
+    }
+
+    /**
+     * Neteja l'estat de cerca, tornant-lo als valors inicials.
+     *
+     * @author Oscar
+     * @since 1.0
+     */
+    fun clearSearch() {
+        _userSearchState.value = UserSearchState()
     }
 }

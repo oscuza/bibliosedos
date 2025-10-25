@@ -299,6 +299,30 @@ interface AuthApiService {
     @GET("biblioteca/usuaris/trobarUsuariPerId/{id}")
     suspend fun getUserById(@Path("id") userId: Long): User
 
+
+    /**
+     * Obté les dades d'un usuari específic pel seu NIF/DNI.
+     *
+     * **Endpoint:** `GET /biblioteca/usuaris/trobarUsuariPerNif/{nif}`
+     *
+     * **Requeriments:**
+     * - Requereix autenticació (token JWT)
+     * - L'usuari amb aquest NIF ha d'existir al sistema
+     *
+     * @param nif NIF/DNI de l'usuari a cercar
+     * @return [User] amb les dades de l'usuari trobat
+     * @throws retrofit2.HttpException si l'usuari no existeix (404) o no està autenticat (401)
+     * @throws java.io.IOException si hi ha problemes de xarxa
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see User
+     */
+    @GET("biblioteca/usuaris/trobarUsuariPerNif/{nif}")
+    suspend fun getUserByNif(@Path("nif") nif: String): User
+
+
+
     /**
      * Actualitza les dades d'un usuari existent.
      *

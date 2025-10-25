@@ -99,6 +99,13 @@ fun AppNavigation() {
             )
         }
 
+        // ========== PANTALLA DE CERCA D'USUARIS ==========
+        composable(AppScreens.UserSearchScreen.route) {
+            UserSearchScreen(
+                navController = navController,
+                authViewModel = authViewModel
+            )
+        }
 
         // ========== PANTALLA DE PERFIL (Compartida: Admin y User) ==========
         composable(

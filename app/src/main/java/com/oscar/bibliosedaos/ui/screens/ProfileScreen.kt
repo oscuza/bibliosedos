@@ -242,7 +242,7 @@ fun ProfileScreen(
                                 }
                             )
 
-                            Divider()
+                            HorizontalDivider()
 
                             OptionItem(
                                 icon = Icons.Default.Lock,
@@ -426,7 +426,7 @@ fun AdminUserSection(
             }
         )
 
-        Divider()
+        HorizontalDivider()
 
         OptionItem(
             icon = Icons.Default.PersonAdd,
@@ -434,6 +434,49 @@ fun AdminUserSection(
             subtitle = "Registrar nou usuari",
             onClick = {
                 navController.navigate(AppScreens.AddUserScreen.route)
+            }
+        )
+
+
+
+        HorizontalDivider()
+
+        OptionItem(
+            icon = Icons.Default.Badge,
+            title = "Cercar d'Usuaris",
+            subtitle = "Trobar usuari pel seu NIF o per la seva ID",
+            onClick = {
+                navController.navigate(AppScreens.UserSearchScreen.route)
+            }
+        )
+
+        HorizontalDivider()
+
+        OptionItem(
+            icon = Icons.Default.DeleteSweep,
+            title = "Eliminar Usuari",
+            subtitle = "Funcionalitat disponible properament",
+            onClick = {
+                Toast.makeText(
+                    context,
+                    "Funcionalitat disponible properament",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        )
+
+        HorizontalDivider()
+
+        OptionItem(
+            icon = Icons.Default.Update,
+            title = "Actualitzar Usuari",
+            subtitle = "Funcionalitat disponible properament",
+            onClick = {
+                Toast.makeText(
+                    context,
+                    "Funcionalitat disponible properament",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         )
     }
@@ -513,7 +556,7 @@ fun NormalUserSection(
             }
         )
 
-        Divider()
+        HorizontalDivider()
 
         OptionItem(
             icon = Icons.Default.Bookmark,
@@ -525,7 +568,7 @@ fun NormalUserSection(
             }
         )
 
-        Divider()
+        HorizontalDivider()
 
         OptionItem(
             icon = Icons.Default.History,
@@ -554,7 +597,7 @@ fun NormalUserSection(
             }
         )
 
-        Divider()
+        HorizontalDivider()
 
         OptionItem(
             icon = Icons.Default.Create,
@@ -566,7 +609,7 @@ fun NormalUserSection(
             }
         )
 
-        Divider()
+        HorizontalDivider()
 
         OptionItem(
             icon = Icons.Default.TrendingUp,
@@ -595,7 +638,7 @@ fun NormalUserSection(
             }
         )
 
-        Divider()
+        HorizontalDivider()
 
         OptionItem(
             icon = Icons.Default.NotificationImportant,
@@ -662,7 +705,7 @@ fun SectionCard(
                 )
             }
 
-            Divider()
+            HorizontalDivider()
 
             /**
              * Contingut de la secció (OptionItems).

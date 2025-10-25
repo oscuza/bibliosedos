@@ -58,6 +58,46 @@ sealed class AppScreens(val route: String) {
      */
     object AdminHomeScreen : AppScreens("admin_home_screen")
 
+
+    /**
+     * Pantalla de cerca d'usuaris per ID o NIF.
+     *
+     * **Descripció:**
+     * Pantalla dedicada que permet a l'administrador cercar usuaris
+     * específics mitjançant el seu identificador únic (ID) o el seu
+     * document d'identitat (NIF/DNI).
+     *
+     * **Funcionalitats:**
+     * - Cerca per ID de l'usuari (número únic)
+     * - Cerca per NIF/DNI (document d'identitat)
+     * - Validació de dades introduïdes
+     * - Visualització de resultats amb informació completa
+     * - Navegació directa al perfil complet de l'usuari
+     *
+     * **Característiques:**
+     * - No mostra usuaris fins que es realitzi una cerca activa
+     * - Missatges d'error clars i descriptius
+     * - Permet netejar la cerca fàcilment
+     * - Pestanyes per seleccionar tipus de cerca
+     *
+     * **Requeriments:**
+     * - ⚠️ Només accessible per administradors (rol=2)
+     * - 🔒 Requereix token JWT vàlid
+     *
+     * **Navegació:**
+     * - **Entrada:** Des de AdminHomeScreen (card "Cercar Usuari")
+     * - **Sortida:** UserProfileScreen (quan es troba un usuari)
+     *
+     * **Ruta:** `user_search_screen`
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see UserSearchScreen
+     * @see AdminHomeScreen
+     */
+    object UserSearchScreen : AppScreens("user_search_screen")
+
+
     /**
      * Pantalla per afegir un nou usuari al sistema.
      *
