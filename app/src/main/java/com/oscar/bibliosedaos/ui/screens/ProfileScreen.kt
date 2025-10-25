@@ -84,6 +84,9 @@ fun ProfileScreen(
     // Variable per gestionar el diàleg de restablir contrasenya (per admins)
     var showResetPasswordDialog by remember { mutableStateOf(false) }
 
+    // Variable per gestionar el diàleg d'eliminar usuari (per admins)
+    var showDeleteUserDialog by remember { mutableStateOf(false) }
+
     // ========== Càrrega del Perfil ==========
 
     /**
@@ -281,6 +284,36 @@ fun ProfileScreen(
                             }
                         }
 
+                        // ========== Botó Eliminar Usuari (només per admins veient altres perfils) ==========
+                        if (currentUserIsAdmin && !isViewingOwnProfile) {
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            OutlinedButton(
+                                onClick = {
+                                    showDeleteUserDialog = true
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 0.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error
+                                ),
+                                border = ButtonDefaults.outlinedButtonBorder.copy(
+                                    brush = androidx.compose.ui.graphics.SolidColor(
+                                        MaterialTheme.colorScheme.error
+                                    )
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Default.DeleteForever,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("ELIMINAR AQUEST USUARI")
+                            }
+                        }
+
                         // ========== Seccions segons el rol de l'usuari ==========
 
                         /**
@@ -379,6 +412,139 @@ fun ProfileScreen(
             }
         )
     }
+
+    // ========== Diàleg d'Eliminació d'Usuari (Admins) ==========
+    if (showDeleteUserDialog) {
+        var confirmationText by remember { mutableStateOf("") }
+        val userToDelete = userProfileState.user
+        val requiredText = "ELIMINAR"
+
+        AlertDialog(
+            onDismissRequest = { showDeleteUserDialog = false },
+            icon = {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(48.dp)
+                )
+            },
+            title = {
+                Text(
+                    "⚠️ Eliminar Usuari",
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        "Estàs a punt d'ELIMINAR PERMANENTMENT l'usuari:",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                "👤 ${userToDelete?.nick ?: ""}",
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text("📛 ${userToDelete?.nom ?: ""} ${userToDelete?.cognom1 ?: ""}")
+                            Text("🆔 ID: ${userToDelete?.id ?: ""}")
+                        }
+                    }
+
+                    Text(
+                        "⚠️ ATENCIÓ: Aquesta acció NO es pot desfer.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Text(
+                        "Per confirmar l'eliminació, escriu la paraula ELIMINAR:",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    OutlinedTextField(
+                        value = confirmationText,
+                        onValueChange = { confirmationText = it.uppercase() },
+                        label = { Text("Escriu: $requiredText") },
+                        placeholder = { Text(requiredText) },
+                        isError = confirmationText.isNotEmpty() && confirmationText != requiredText,
+                        supportingText = {
+                            if (confirmationText.isNotEmpty() && confirmationText != requiredText) {
+                                Text(
+                                    "Has d'escriure exactament: $requiredText",
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = if (confirmationText == requiredText)
+                                MaterialTheme.colorScheme.error
+                            else
+                                MaterialTheme.colorScheme.primary
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        authViewModel.deleteUser(
+                            userId = userId,
+                            onResult = { success, message ->
+                                if (success) {
+                                    showDeleteUserDialog = false
+                                    Toast.makeText(
+                                        context,
+                                        "✅ $message",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                    // Simplement tornar enrere, eliminant aquesta pantalla de la pila
+                                    navController.popBackStack()
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "❌ $message",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        )
+                    },
+                    enabled = confirmationText == requiredText,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Icon(Icons.Default.DeleteForever, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("ELIMINAR PERMANENTMENT")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteUserDialog = false }) {
+                    Text("CANCEL·LAR")
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
 }
 
 /**
@@ -443,7 +609,7 @@ fun AdminUserSection(
 
         OptionItem(
             icon = Icons.Default.Badge,
-            title = "Cercar d'Usuaris",
+            title = "Cercar per Usuaris",
             subtitle = "Trobar usuari pel seu NIF o per la seva ID",
             onClick = {
                 navController.navigate(AppScreens.UserSearchScreen.route)
