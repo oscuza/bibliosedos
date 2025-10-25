@@ -281,9 +281,7 @@ fun ProfileScreen(
 
                             // ========== Botó Eliminar Usuari (només per admins veient altres perfils) ==========
 
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            OutlinedButton(
+                                                     OutlinedButton(
                                 onClick = {
                                     showDeleteUserDialog = true
                                 },
@@ -304,11 +302,9 @@ fun ProfileScreen(
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+
                                 Text("ELIMINAR AQUEST USUARI")
                             }
-
-                            Spacer(modifier = Modifier.height(8.dp))
 
                             //  NOU BOTÓ: EDITAR DADES D'AQUEST USUARI
                             OutlinedButton(
@@ -331,13 +327,12 @@ fun ProfileScreen(
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+
                                 Text("EDITAR DADES D'AQUEST USUARI")
                             }
                         }
 
                         // ========== Seccions segons el rol de l'usuari ==========
-
                         /**
                          * Mostra opcions específiques segons si és admin o usuari normal.
                          */
