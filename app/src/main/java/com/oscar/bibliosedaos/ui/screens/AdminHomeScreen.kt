@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.oscar.bibliosedaos.data.network.User
 import com.oscar.bibliosedaos.navigation.AppScreens
@@ -101,7 +103,7 @@ fun AdminHomeScreen(
      */
 
         // Obtenir el propietari del cicle de vida
-        val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+        val lifecycleOwner = LocalLifecycleOwner.current
 
         /**
          * Carrega la llista d'usuaris CADA COP que la pantalla
@@ -110,6 +112,7 @@ fun AdminHomeScreen(
          * Fem servir DisposableEffect per afegir un observador al cicle de vida
          * i netejar-lo (onDispose) quan la pantalla es destrueix.
          */
+
         DisposableEffect(lifecycleOwner) {
             val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
                 if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
@@ -194,7 +197,7 @@ fun AdminHomeScreen(
                             launchSingleTop = true
                         }
                     }) {
-                        Icon(Icons.Default.ExitToApp, "Tancar Sessió")
+                        Icon(Icons.AutoMirrored.Filled.ExitToApp, "Tancar Sessió")
                     }
                 }
             )
