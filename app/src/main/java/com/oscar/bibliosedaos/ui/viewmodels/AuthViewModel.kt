@@ -44,7 +44,7 @@ data class LoginUiState(
  * @see AuthViewModel.login
  */
 data class UserListState(
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
     val users: List<User> = emptyList(),
     val error: String? = null,
 )

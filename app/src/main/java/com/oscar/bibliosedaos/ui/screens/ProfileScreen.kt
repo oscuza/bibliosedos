@@ -55,44 +55,21 @@ fun ProfileScreen(
 ) {
     // ========== Estats Observables ==========
 
-
-    /**
-     * Estat del perfil de l'usuari.
-     * Conté: isLoading, user, error
-     */
     val userProfileState by authViewModel.userProfileState.collectAsState()
-
-    /**
-     * Estat del login per obtenir l'ID de l'usuari actual.
-     */
     val loginState by authViewModel.loginUiState.collectAsState()
-
     val context = LocalContext.current
 
     // ========== Detecció de Perfil Propi ==========
-
-    /**
-     * ID de l'usuari actualment autenticat.
-     */
     val currentUserId = loginState.authResponse?.id
-
-    /**
-     * Determina si s'està veient el propi perfil.
-     * true = perfil propi (no mostrar botó "Volver")
-     * false = perfil d'un altre usuari (mostrar botó "Volver")
-     */
     val isViewingOwnProfile = currentUserId == userId
-
     val currentUserIsAdmin = (loginState.authResponse?.rol == 2)
 
-    // Variable per gestionar el diàleg de restablir contrasenya (per admins)
+    // Variables per a diàlegs
     var showResetPasswordDialog by remember { mutableStateOf(false) }
-
-    // Variable per gestionar el diàleg d'eliminar usuari (per admins)
     var showDeleteUserDialog by remember { mutableStateOf(false) }
-
-    //Variable per gestionar el diàleg d'actualitzar usuari (per admins)
     var showUpdateUserDialog by remember { mutableStateOf(false) }
+
+
     // ========== Càrrega del Perfil ==========
 
     /**
@@ -124,18 +101,29 @@ fun ProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(title = {
-                Text(
-                    if (userProfileState.user?.rol == 2) "Panell d'Administrador"
-                    else "El Meu Perfil"
-                )
+                // ========== LÒGICA DEL TÍTOL CORREGIDA ==========
+                val titleText = if (isViewingOwnProfile) {
+                    // L'usuari està veient el SEU propi perfil
+                    if (currentUserIsAdmin) {
+                        "Panell d'Administrador"
+                    } else {
+                        "El Meu Perfil"
+                    }
+                } else {
+                    // L'usuari (admin) està veient el perfil d'UN ALTRE
+                    val viewedUserName = userProfileState.user?.nick ?: "..."
+                    "Perfil de $viewedUserName (Visual mode Admin)"
+                }
+                Text(titleText)
+                // ===============================================
             }, navigationIcon = {
-                /**
-                 * Botó "Volver" només si NO és el propi perfil.
-                 * Permet als admins tornar a la llista després de veure
-                 * el perfil d'un altre usuari.
-                 */
+
                 if (!isViewingOwnProfile) {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = {
+
+                        navController.popBackStack()
+                        navController.popBackStack()
+                    }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Tornar"
                         )
@@ -226,34 +214,6 @@ fun ProfileScreen(
                         )
 
                         // ========== Secció de Gestió de Compte ==========
-
-                        /**
-                         * Opcions de gestió del compte (comunes per tots).
-                         * Inclou: Editar Perfil, Canviar Contrasenya
-                         */
-                        SectionCard(
-                            title = "El Meu Compte", icon = Icons.Default.Person
-                        ) {
-                            OptionItem(
-                                icon = Icons.Default.Edit,
-                                title = "Editar Perfil",
-                                subtitle = "Modificar dades personals",
-                                onClick = {
-                                    navController.navigate(AppScreens.EditProfileScreen.route)
-                                })
-
-                            HorizontalDivider()
-
-                            OptionItem(
-                                icon = Icons.Default.Lock,
-                                title = "Canviar Contrasenya",
-                                subtitle = "Actualitzar contrasenya d'accés",
-                                onClick = {
-                                    // Navegar a la pantalla de canviar contrasenya
-                                    navController.navigate("change_password")
-                                })
-                        }
-
                         // ========== Botó Restablir Contrasenya (només per admins veient altres perfils) ==========
                         if (currentUserIsAdmin && !isViewingOwnProfile) {
                             Spacer(modifier = Modifier.height(8.dp))
@@ -281,7 +241,7 @@ fun ProfileScreen(
 
                             // ========== Botó Eliminar Usuari (només per admins veient altres perfils) ==========
 
-                                                     OutlinedButton(
+                            OutlinedButton(
                                 onClick = {
                                     showDeleteUserDialog = true
                                 },
@@ -318,7 +278,7 @@ fun ProfileScreen(
                                     .fillMaxWidth()
                                     .padding(horizontal = 0.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.primary // Utilitzar color primari
+                                    contentColor = MaterialTheme.colorScheme.primary
                                 ),
                                 border = ButtonDefaults.outlinedButtonBorder
                             ) {
@@ -346,11 +306,16 @@ fun ProfileScreen(
                                 },// Passar el callback
                                 onUpdateClick = {
                                     showUpdateUserDialog = true
-                                }//Passar el callback per actualitzar
+                                },//Passar el callback per actualitzar
+                                isViewingOwnProfile = isViewingOwnProfile //
                             )
                         } else {
                             // Seccions per usuaris normals
-                            NormalUserSection(navController, context)
+                            NormalUserSection(
+                                navController,
+                                context,
+                                isViewingOwnProfile = isViewingOwnProfile
+                            )
                         }
                     }
                 }
@@ -910,7 +875,35 @@ fun AdminUserSection(
     context: android.content.Context,
     onDeleteClick: () -> Unit = {}, // Nou paràmetre per gestionar el clic d'eliminar
     onUpdateClick: () -> Unit = {},
+    isViewingOwnProfile: Boolean,
 ) {
+    if (isViewingOwnProfile) {
+        /**
+         * Opcions de gestió del compte personal de l'Administrador.
+         */
+        SectionCard(
+            title = "El Meu Compte",
+            icon = Icons.Default.Person
+        ) {
+            OptionItem(
+                icon = Icons.Default.Edit,
+                title = "Editar Perfil",
+                subtitle = "Modificar dades personals",
+                onClick = {
+                    navController.navigate(AppScreens.EditProfileScreen.route)
+                })
+
+            HorizontalDivider()
+
+            OptionItem(
+                icon = Icons.Default.Lock,
+                title = "Canviar Contrasenya",
+                subtitle = "Actualitzar contrasenya d'accés",
+                onClick = {
+                    navController.navigate("change_password")
+                })
+        }
+    }
     // ========== Gestió d'Usuaris ==========
 
     /**
@@ -1018,8 +1011,37 @@ fun AdminUserSection(
 fun NormalUserSection(
     navController: NavController,
     context: android.content.Context,
+    isViewingOwnProfile: Boolean,
 ) {
     val context = LocalContext.current
+
+    if (isViewingOwnProfile) {
+        /**
+         * Opcions de gestió del compte personal de l'Usuari.
+         */
+        SectionCard(
+            title = "El Meu Compte",
+            icon = Icons.Default.Person
+        ) {
+            OptionItem(
+                icon = Icons.Default.Edit,
+                title = "Editar Perfil",
+                subtitle = "Modificar dades personals",
+                onClick = {
+                    navController.navigate(AppScreens.EditProfileScreen.route)
+                })
+
+            HorizontalDivider()
+
+            OptionItem(
+                icon = Icons.Default.Lock,
+                title = "Canviar Contrasenya",
+                subtitle = "Actualitzar contrasenya d'accés",
+                onClick = {
+                    navController.navigate("change_password")
+                })
+        }
+    }
 
     // ========== Gestió de Préstecs ==========
 
