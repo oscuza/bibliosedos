@@ -77,11 +77,6 @@ fun AdminHomeScreen(
      */
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    /**
-     * Controla la visibilitat de l'advertència d'auto-eliminació.
-     * (Actualment no s'utilitza, es mostra Toast directament)
-     */
-    var showSelfDeleteWarning by remember { mutableStateOf(false) }
 
     /**
      * Usuari que s'està a punt d'eliminar.

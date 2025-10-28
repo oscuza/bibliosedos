@@ -125,10 +125,6 @@ fun LoginScreen(
             ) {
                 // ========== Títol de l'Aplicació ==========
 
-                /**
-                 * Títol principal amb emoji de llibre.
-                 * Font size: 25sp, Bold, Color: Primary
-                 */
                 Text(
                     "📚 App BiblioSedaos",
                     style = MaterialTheme.typography.headlineLarge,
