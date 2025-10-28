@@ -3,6 +3,7 @@ package com.oscar.bibliosedaos.ui.screens
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -66,7 +67,8 @@ fun ProfileScreen(
 
     // Variables per a diàlegs
     var showResetPasswordDialog by remember { mutableStateOf(false) }
-    var showDeleteUserDialog by remember { mutableStateOf(false) }
+    var showDeleteUserDialog by remember { mutableStateOf(false) } // Diàleg simplificat (des del perfil)
+    var showDeleteUserDialogWithSearch by remember { mutableStateOf(false) } // Diàleg amb cerca per NIF
     var showUpdateUserDialog by remember { mutableStateOf(false) }
 
 
@@ -112,7 +114,7 @@ fun ProfileScreen(
                 } else {
                     // L'usuari (admin) està veient el perfil d'UN ALTRE
                     val viewedUserName = userProfileState.user?.nick ?: "..."
-                    "Perfil de $viewedUserName (Visual mode Admin)"
+                    "Perfil de $viewedUserName (Visual Admin)"
                 }
                 Text(titleText)
                 // ===============================================
@@ -228,7 +230,10 @@ fun ProfileScreen(
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     contentColor = MaterialTheme.colorScheme.tertiary
                                 ),
-                                border = ButtonDefaults.outlinedButtonBorder
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
                             ) {
                                 Icon(
                                     Icons.Default.AdminPanelSettings,
@@ -251,10 +256,9 @@ fun ProfileScreen(
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     contentColor = MaterialTheme.colorScheme.error
                                 ),
-                                border = ButtonDefaults.outlinedButtonBorder.copy(
-                                    brush = androidx.compose.ui.graphics.SolidColor(
-                                        MaterialTheme.colorScheme.error
-                                    )
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.error
                                 )
                             ) {
                                 Icon(
@@ -280,7 +284,10 @@ fun ProfileScreen(
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     contentColor = MaterialTheme.colorScheme.primary
                                 ),
-                                border = ButtonDefaults.outlinedButtonBorder
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.error
+                                )
                             ) {
                                 Icon(
                                     Icons.Default.Edit,
@@ -302,7 +309,8 @@ fun ProfileScreen(
                                 navController = navController,
                                 context = context,
                                 onDeleteClick = {
-                                    showDeleteUserDialog = true
+                                    showDeleteUserDialogWithSearch =
+                                        true // Diàleg amb cerca per NIF
                                 },// Passar el callback
                                 onUpdateClick = {
                                     showUpdateUserDialog = true
@@ -398,6 +406,170 @@ fun ProfileScreen(
 
     // ========== Diàleg d'Eliminació d'Usuari (Admins) ==========
     if (showDeleteUserDialog) {
+        // Versió simplificada: quan estem veient el perfil d'un altre usuari,
+        // ja tenim l'usuari carregat, així que només cal confirmar
+        var confirmationText by remember { mutableStateOf("") }
+        val requiredText = "ELIMINAR"
+        val userToDelete = userProfileState.user
+
+        // Diàleg de confirmació directe
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteUserDialog = false
+                confirmationText = ""
+            },
+            icon = {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(48.dp)
+                )
+            },
+            title = {
+                Text(
+                    "⚠️ Confirmar Eliminació",
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        "Estàs a punt d'ELIMINAR PERMANENTMENT l'usuari:",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                "👤 ${userToDelete?.nick ?: ""}",
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text("📛 ${userToDelete?.nom ?: ""} ${userToDelete?.cognom1 ?: ""}")
+                            Text("🆔 ID: ${userToDelete?.id ?: ""}")
+                            Text("📄 NIF: ${userToDelete?.nif ?: "N/A"}")
+                        }
+                    }
+
+                    Text(
+                        "⚠️ ATENCIÓ: Aquesta acció NO es pot desfer.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Text(
+                        "Per confirmar l'eliminació, escriu la paraula ELIMINAR:",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    OutlinedTextField(
+                        value = confirmationText,
+                        onValueChange = { confirmationText = it.uppercase() },
+                        label = { Text("Escriu: $requiredText") },
+                        placeholder = { Text(requiredText) },
+                        isError = confirmationText.isNotEmpty() && confirmationText != requiredText,
+                        supportingText = {
+                            if (confirmationText.isNotEmpty() && confirmationText != requiredText) {
+                                Text(
+                                    "Has d'escriure exactament: $requiredText",
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = if (confirmationText == requiredText)
+                                MaterialTheme.colorScheme.error
+                            else
+                                MaterialTheme.colorScheme.primary
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        userToDelete?.let { user ->
+                            authViewModel.deleteUser(
+                                userId = user.id,
+                                onResult = { success, message ->
+                                    if (success) {
+                                        showDeleteUserDialog = false
+                                        Toast.makeText(
+                                            context,
+                                            "✅ $message",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+
+                                        // 1. Obtenir l'ID de l'usuari actiu (l'administrador)
+                                        val currentUserId =
+                                            authViewModel.loginUiState.value.authResponse?.id ?: 0L
+
+                                        // 2. Netejar la pila fins a la Home de l'Admin
+                                        navController.popBackStack(
+                                            route = AppScreens.AdminHomeScreen.route,
+                                            inclusive = false // Manté AdminHomeScreen
+                                        )
+
+                                        // 3. Navegar al perfil de l'usuari actiu (l'administrador)
+                                        navController.navigate(
+                                            AppScreens.UserProfileScreen.route.replace(
+                                                "{userId}",
+                                                currentUserId.toString()
+                                            )
+                                        ) {
+                                            // Assegura que no es creen múltiples instàncies
+                                            launchSingleTop = true
+                                        }
+                                    } else {
+                                        Toast.makeText(
+                                            context,
+                                            "❌ $message",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                }
+                            )
+                        }
+                    },
+                    enabled = confirmationText == requiredText,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("ELIMINAR DEFINITIVAMENT")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteUserDialog = false
+                        confirmationText = ""
+                    }
+                ) {
+                    Text("Cancel·lar")
+                }
+            }
+        )
+    }
+
+    // ========== Diàleg d'Eliminació amb Cerca per NIF (des del menú Admin) ==========
+    if (showDeleteUserDialogWithSearch) {
         var nifToDelete by remember { mutableStateOf("") }
         var confirmationText by remember { mutableStateOf("") }
         var userFound by remember { mutableStateOf<User?>(null) }
@@ -412,7 +584,7 @@ fun ProfileScreen(
         if (!showConfirmation) {
             // PRIMER PAS: Demanar NIF de l'usuari a eliminar
             AlertDialog(onDismissRequest = {
-                showDeleteUserDialog = false
+                showDeleteUserDialogWithSearch = false
                 nifToDelete = ""
                 userFound = null
                 searchError = null
@@ -575,7 +747,7 @@ fun ProfileScreen(
                 TextButton(
                     onClick = {
                         authViewModel.clearSearch()
-                        showDeleteUserDialog = false
+                        showDeleteUserDialogWithSearch = false
                         nifToDelete = ""
                         userFound = null
                         searchError = null
@@ -671,7 +843,7 @@ fun ProfileScreen(
                             authViewModel.deleteUser(
                                 userId = user.id, onResult = { success, message ->
                                     if (success) {
-                                        showDeleteUserDialog = false
+                                        showDeleteUserDialogWithSearch = false
                                         showConfirmation = false
                                         Toast.makeText(
                                             context, "✅ $message", Toast.LENGTH_LONG

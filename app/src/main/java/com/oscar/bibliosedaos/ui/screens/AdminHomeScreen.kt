@@ -95,39 +95,33 @@ fun AdminHomeScreen(
      */
     val currentAdminId = loginState.authResponse?.id
 
-    // ========== Efectes de Cicle de Vida ==========
+
+    // Obtenir el propietari del cicle de vida
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     /**
-     * Carrega la llista d'usuaris en iniciar la pantalla.
-     * S'executa una sola vegada (key = Unit).
+     * Carrega la llista d'usuaris CADA COP que la pantalla
+     * es mostra (es posa en ON_RESUME).
+     *
+     * Fem servir DisposableEffect per afegir un observador al cicle de vida
+     * i netejar-lo (onDispose) quan la pantalla es destrueix.
      */
 
-        // Obtenir el propietari del cicle de vida
-        val lifecycleOwner = LocalLifecycleOwner.current
-
-        /**
-         * Carrega la llista d'usuaris CADA COP que la pantalla
-         * es mostra (es posa en ON_RESUME).
-         *
-         * Fem servir DisposableEffect per afegir un observador al cicle de vida
-         * i netejar-lo (onDispose) quan la pantalla es destrueix.
-         */
-
-        DisposableEffect(lifecycleOwner) {
-            val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-                if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                    authViewModel.loadAllUsers()
-                }
-            }
-
-            // Afegir l'observador
-            lifecycleOwner.lifecycle.addObserver(observer)
-
-            // Netejar l'observador quan la pantalla es destrueix (onDispose)
-            onDispose {
-                lifecycleOwner.lifecycle.removeObserver(observer)
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                authViewModel.loadAllUsers()
             }
         }
+
+        // Afegir l'observador
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        // Netejar l'observador quan la pantalla es destrueix (onDispose)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
 
     // ========== Diàleg de Confirmació d'Eliminació ==========
@@ -366,7 +360,9 @@ fun AdminHomeScreen(
                                             Text(
                                                 "Per ID o NIF",
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(
+                                                    alpha = 0.7f
+                                                )
                                             )
                                         }
                                     }

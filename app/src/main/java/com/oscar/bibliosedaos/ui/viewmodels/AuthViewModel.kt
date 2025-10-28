@@ -759,18 +759,36 @@ class AuthViewModel(
             _userSearchState.value = UserSearchState(isSearching = true)
 
             try {
-                val user = api.getUserByNif(nif.trim())
-                _userSearchState.value = UserSearchState(
-                    isSearching = false,
-                    searchResult = user,
-                    hasSearched = true
-                )
+                val response = api.getUserByNif(nif.trim())
+
+                if (response.isSuccessful && response.body() != null) {
+                    // Usuari trobat
+                    _userSearchState.value = UserSearchState(
+                        isSearching = false,
+                        searchResult = response.body(),
+                        hasSearched = true
+                    )
+                }else{
+                    // Usuari no trobat (404 o resposta buida)
+                    val errorMessage = when (response.code()) {
+                        404 -> "No s'ha trobat cap usuari amb el NIF $nif"
+                        401 -> "Sessió expirada. Torna a iniciar sessió"
+                        403 -> "No tens permisos per cercar usuaris"
+                        else -> "No s'ha trobat cap usuari amb el NIF $nif"
+                    }
+                    _userSearchState.value = UserSearchState(
+                        isSearching = false,
+                        error = errorMessage,
+                        hasSearched = true
+                    )
+                }
             } catch (e: Exception) {
                 val errorMessage = when {
-                    e.message?.contains("404") == true -> "No s'ha trobat cap usuari amb NIF $nif"
                     e.message?.contains("401") == true -> "Sessió expirada. Torna a iniciar sessió"
                     e.message?.contains("403") == true -> "No tens permisos per cercar usuaris"
-                    else -> "Error de cerca: ${e.message}"
+                    e.message?.contains("timeout") == true -> "Temps d'espera esgotat"
+                    e.message?.contains("Unable to resolve host") == true -> "Sense connexió al servidor"
+                    else -> "Error de connexió: ${e.message}"
                 }
                 _userSearchState.value = UserSearchState(
                     isSearching = false,

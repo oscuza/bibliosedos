@@ -319,7 +319,7 @@ interface AuthApiService {
      * @see User
      */
     @GET("biblioteca/usuaris/trobarUsuariPerNif/{nif}")
-    suspend fun getUserByNif(@Path("nif") nif: String): User
+    suspend fun getUserByNif(@Path("nif") nif: String): Response<User>
 
 
 
