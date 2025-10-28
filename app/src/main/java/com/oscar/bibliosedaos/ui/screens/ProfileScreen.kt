@@ -60,6 +60,9 @@ fun ProfileScreen(
     val loginState by authViewModel.loginUiState.collectAsState()
     val context = LocalContext.current
 
+    // Flag per prevenir doble clic al botó enrere
+    var isNavigating by remember { mutableStateOf(false) }
+
     // ========== Detecció de Perfil Propi ==========
     val currentUserId = loginState.authResponse?.id
     val isViewingOwnProfile = currentUserId == userId
@@ -114,17 +117,30 @@ fun ProfileScreen(
                 } else {
                     // L'usuari (admin) està veient el perfil d'UN ALTRE
                     val viewedUserName = userProfileState.user?.nick ?: "..."
-                    "Perfil de $viewedUserName (Visual Admin)"
+                    "Perfil de $viewedUserName (Visual mode Admin)"
                 }
                 Text(titleText)
                 // ===============================================
             }, navigationIcon = {
 
-                if (!isViewingOwnProfile) {
+                if (!isViewingOwnProfile && !isNavigating) {
                     IconButton(onClick = {
+                        if (!isNavigating) {
+                            isNavigating = true
+                            // Tornar al perfil de l'admin
+                            val adminId = loginState.authResponse?.id ?: 0L
 
-                        navController.popBackStack()
-                        navController.popBackStack()
+                            // Netejar fins a AdminHomeScreen i navegar al perfil de l'admin
+                            navController.navigate(
+                                AppScreens.UserProfileScreen.createRoute(adminId)
+                            ) {
+                                // Eliminar tot fins a AdminHomeScreen (però mantenir-lo a la pila)
+                                popUpTo(AppScreens.AdminHomeScreen.route) {
+                                    inclusive = false
+                                }
+                                launchSingleTop = true
+                            }
+                        }
                     }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Tornar"
@@ -286,7 +302,7 @@ fun ProfileScreen(
                                 ),
                                 border = BorderStroke(
                                     width = 1.dp,
-                                    color = MaterialTheme.colorScheme.error
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             ) {
                                 Icon(
@@ -309,8 +325,7 @@ fun ProfileScreen(
                                 navController = navController,
                                 context = context,
                                 onDeleteClick = {
-                                    showDeleteUserDialogWithSearch =
-                                        true // Diàleg amb cerca per NIF
+                                    showDeleteUserDialogWithSearch = true // Diàleg amb cerca per NIF
                                 },// Passar el callback
                                 onUpdateClick = {
                                     showUpdateUserDialog = true

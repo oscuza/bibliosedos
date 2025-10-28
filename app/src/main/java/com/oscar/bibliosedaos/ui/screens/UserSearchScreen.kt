@@ -1,8 +1,3 @@
-// ============================================================
-// ARXIU NOU: UserSearchScreen.kt
-// UBICACIÓ: ui/screens/UserSearchScreen.kt
-// ============================================================
-
 package com.oscar.bibliosedaos.ui.screens
 
 import androidx.compose.foundation.layout.*
@@ -83,6 +78,14 @@ fun UserSearchScreen(
      */
     val searchState by authViewModel.userSearchState.collectAsState()
 
+    /**
+     * Estat del login per obtenir l'ID de l'admin.
+     */
+    val loginState by authViewModel.loginUiState.collectAsState()
+
+    // Flag per prevenir doble clic al botó enrere
+    var isNavigating by remember { mutableStateOf(false) }
+
     // ========== Neteja de Resultats en Entrar ==========
 
     /**
@@ -100,14 +103,28 @@ fun UserSearchScreen(
             TopAppBar(
                 title = { Text("Cercar Usuari") },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        authViewModel.clearSearch()
-                        navController.popBackStack()
-                    }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            "Tornar"
-                        )
+                    if (!isNavigating) {
+                        IconButton(onClick = {
+                            if (!isNavigating) {
+                                isNavigating = true
+                                authViewModel.clearSearch()
+                                // Navegar al perfil de l'admin
+                                val adminId = loginState.authResponse?.id ?: 0L
+                                navController.navigate(
+                                    AppScreens.UserProfileScreen.createRoute(adminId)
+                                ) {
+                                    popUpTo(AppScreens.UserSearchScreen.route) {
+                                        inclusive = true
+                                    }
+                                    launchSingleTop = true
+                                }
+                            }
+                        }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                "Tornar"
+                            )
+                        }
                     }
                 },
                 actions = {

@@ -99,6 +99,9 @@ fun AdminHomeScreen(
     // Obtenir el propietari del cicle de vida
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    // Flag per prevenir doble clic al botó enrere
+    var isNavigating by remember { mutableStateOf(false) }
+
     /**
      * Carrega la llista d'usuaris CADA COP que la pantalla
      * es mostra (es posa en ON_RESUME).
@@ -170,13 +173,28 @@ fun AdminHomeScreen(
                     /**
                      * Botó per tornar enrere (a ProfileScreen).
                      */
-                    IconButton(onClick = {
-                        navController.popBackStack()
-                    }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Tornar enrere"
-                        )
+                    if (!isNavigating) {
+                        IconButton(onClick = {
+                            if (!isNavigating) {
+                                isNavigating = true
+                                // Navegar directament al perfil de l'admin
+                                val adminId = loginState.authResponse?.id ?: 0L
+                                navController.navigate(
+                                    AppScreens.UserProfileScreen.createRoute(adminId)
+                                ) {
+                                    popUpTo(AppScreens.AdminHomeScreen.route) {
+                                        inclusive = true
+                                    }
+                                    launchSingleTop = true
+                                }
+                            }
+                        }) {
+
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Tornar enrere"
+                            )
+                        }
                     }
                 },
                 actions = {

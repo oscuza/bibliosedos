@@ -15,6 +15,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.oscar.bibliosedaos.navigation.AppScreens
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
 
 /**
@@ -57,6 +58,12 @@ fun AddUserScreen(
     var isCreating by remember { mutableStateOf(false) }
     var createMessage by remember { mutableStateOf<String?>(null) }
 
+    // Obtenir estat del login per l'ID de l'admin
+    val loginState by authViewModel.loginUiState.collectAsState()
+
+    // Flag per prevenir doble clic al botó enrere
+    var isNavigating by remember { mutableStateOf(false) }
+
     // ========== VALIDACIONS ==========
 
     val isNickValid = nick.length in 3..10 && nick.matches(Regex("^[a-zA-Z0-9_]+$"))
@@ -83,8 +90,24 @@ fun AddUserScreen(
             TopAppBar(
                 title = { Text("Crear Nou Usuari") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, "Tornar")
+                    if (!isNavigating) {
+                        IconButton(onClick = {
+                            if (!isNavigating) {
+                                isNavigating = true
+                                // Navegar al perfil de l'admin
+                                val adminId = loginState.authResponse?.id ?: 0L
+                                navController.navigate(
+                                    AppScreens.UserProfileScreen.createRoute(adminId)
+                                ) {
+                                    popUpTo(AppScreens.AddUserScreen.route) {
+                                        inclusive = true
+                                    }
+                                    launchSingleTop = true
+                                }
+                            }
+                        }) {
+                            Icon(Icons.Default.ArrowBack, "Tornar")
+                        }
                     }
                 }
             )
@@ -379,8 +402,18 @@ fun AddUserScreen(
                         onResult = { success, message ->
                             isCreating = false
                             createMessage = message
-                            if (success) {
-                                navController.popBackStack()
+                            if (success && !isNavigating) {
+                                isNavigating = true
+                                // Navegar al perfil de l'admin
+                                val adminId = loginState.authResponse?.id ?: 0L
+                                navController.navigate(
+                                    AppScreens.UserProfileScreen.createRoute(adminId)
+                                ) {
+                                    popUpTo(AppScreens.AddUserScreen.route) {
+                                        inclusive = true
+                                    }
+                                    launchSingleTop = true
+                                }
                             }
                         }
                     )

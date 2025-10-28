@@ -16,6 +16,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.oscar.bibliosedaos.navigation.AppScreens
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
 
 /**
@@ -45,7 +46,11 @@ fun ChangePasswordScreen(
 
     // Obtenir dades de l'usuari actual
     val userProfileState by authViewModel.userProfileState.collectAsState()
+    val loginState by authViewModel.loginUiState.collectAsState()
     val userId = userProfileState.user?.id ?: 0L
+
+    // Flag per prevenir doble clic al botó enrere
+    var isNavigating by remember { mutableStateOf(false) }
 
     // Validacions
     val isCurrentPasswordValid = currentPassword.length >= 6
@@ -67,8 +72,25 @@ fun ChangePasswordScreen(
             TopAppBar(
                 title = { Text("Canviar Contrasenya") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Tornar")
+                    if (!isNavigating) {
+                        IconButton(onClick = {
+                            if (!isNavigating) {
+                                isNavigating = true
+                                // Obtenir l'ID de l'usuari actual i navegar al seu perfil
+                                val currentUserId = loginState.authResponse?.id ?: 0L
+                                navController.navigate(
+                                    AppScreens.UserProfileScreen.createRoute(currentUserId)
+                                ) {
+                                    // Eliminar ChangePasswordScreen de la pila
+                                    popUpTo(AppScreens.ChangePasswordScreen.route) {
+                                        inclusive = true
+                                    }
+                                    launchSingleTop = true
+                                }
+                            }
+                        }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Tornar")
+                        }
                     }
                 }
             )
@@ -359,8 +381,24 @@ fun ChangePasswordScreen(
                         if (changeSuccess) {
                             Spacer(modifier = Modifier.height(8.dp))
                             TextButton(
-                                onClick = { navController.popBackStack() },
-                                modifier = Modifier.align(Alignment.End)
+                                onClick = {
+                                    if (!isNavigating) {
+                                        isNavigating = true
+                                        // Obtenir l'ID de l'usuari actual i navegar al seu perfil
+                                        val currentUserId = loginState.authResponse?.id ?: 0L
+                                        navController.navigate(
+                                            AppScreens.UserProfileScreen.createRoute(currentUserId)
+                                        ) {
+                                            // Eliminar ChangePasswordScreen de la pila
+                                            popUpTo(AppScreens.ChangePasswordScreen.route) {
+                                                inclusive = true
+                                            }
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.align(Alignment.End),
+                                enabled = !isNavigating
                             ) {
                                 Text("TORNAR AL PERFIL")
                             }

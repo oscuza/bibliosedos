@@ -55,6 +55,14 @@ fun EditProfileScreen(
      */
     val userProfileState by authViewModel.userProfileState.collectAsState()
 
+    /**
+     * Estat del login per obtenir l'ID de l'usuari actual
+     */
+    val loginState by authViewModel.loginUiState.collectAsState()
+
+    // Flag per prevenir doble clic al botó enrere
+    var isNavigating by remember { mutableStateOf(false) }
+
     // ========== ESTATS LOCALS PER ALS CAMPS EDITABLES ==========
 
     var nick by remember { mutableStateOf("") }
@@ -118,8 +126,25 @@ fun EditProfileScreen(
             TopAppBar(
                 title = { Text("Editar Perfil") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, "Tornar")
+                    if (!isNavigating) {
+                        IconButton(onClick = {
+                            if (!isNavigating) {
+                                isNavigating = true
+                                // Obtenir l'ID de l'usuari actual i navegar al seu perfil
+                                val userId = loginState.authResponse?.id ?: 0L
+                                navController.navigate(
+                                    AppScreens.UserProfileScreen.createRoute(userId)
+                                ) {
+                                    // Eliminar EditProfileScreen de la pila
+                                    popUpTo(AppScreens.EditProfileScreen.route) {
+                                        inclusive = true
+                                    }
+                                    launchSingleTop = true
+                                }
+                            }
+                        }) {
+                            Icon(Icons.Default.ArrowBack, "Tornar")
+                        }
                     }
                 }
             )
