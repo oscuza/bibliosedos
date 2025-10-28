@@ -325,11 +325,9 @@ fun ProfileScreen(
                                 navController = navController,
                                 context = context,
                                 onDeleteClick = {
-                                    showDeleteUserDialogWithSearch = true // Diàleg amb cerca per NIF
+                                    showDeleteUserDialogWithSearch =
+                                        true // Diàleg amb cerca per NIF
                                 },// Passar el callback
-                                onUpdateClick = {
-                                    showUpdateUserDialog = true
-                                },//Passar el callback per actualitzar
                                 isViewingOwnProfile = isViewingOwnProfile //
                             )
                         } else {
@@ -920,7 +918,7 @@ fun ProfileScreen(
         val userSearchState by authViewModel.userSearchState.collectAsState()
         var isSearching by remember { mutableStateOf(false) }
         var searchError by remember { mutableStateOf<String?>(null) }
-        val scope = rememberCoroutineScope()
+
 
         AlertDialog(
             onDismissRequest = {
@@ -1060,8 +1058,7 @@ fun ProfileScreen(
 fun AdminUserSection(
     navController: NavController,
     context: android.content.Context,
-    onDeleteClick: () -> Unit = {}, // Nou paràmetre per gestionar el clic d'eliminar
-    onUpdateClick: () -> Unit = {},
+    onDeleteClick: () -> Unit = {},
     isViewingOwnProfile: Boolean,
 ) {
     if (isViewingOwnProfile) {
