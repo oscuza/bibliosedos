@@ -16,7 +16,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.oscar.bibliosedaos.data.models.Llibre
 import com.oscar.bibliosedaos.ui.viewmodels.BookViewModel
 import kotlinx.coroutines.launch
 

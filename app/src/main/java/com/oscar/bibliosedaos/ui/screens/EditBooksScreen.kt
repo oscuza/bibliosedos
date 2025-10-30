@@ -5,6 +5,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,7 +17,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.oscar.bibliosedaos.data.models.Autor
 import com.oscar.bibliosedaos.data.models.Llibre
 import com.oscar.bibliosedaos.ui.viewmodels.BookViewModel
 import kotlinx.coroutines.launch
@@ -236,7 +237,7 @@ fun EditBookScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.Default.ArrowBack, "Tornar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Tornar")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -354,7 +355,7 @@ fun EditBookScreen(
                                 label = { Text("ISBN *") },
                                 placeholder = { Text("978-3-16-148410-0") },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Label, contentDescription = null)
+                                    Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null)
                                 },
                                 isError = isbnError != null,
                                 supportingText = {

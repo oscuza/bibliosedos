@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
@@ -1150,11 +1151,11 @@ fun AdminUserSection(
      */
     SectionCard(
         title = "Gestió del Catàleg",
-        icon = Icons.Default.MenuBook,
+        icon = Icons.AutoMirrored.Filled.MenuBook,
         containerColor = MaterialTheme.colorScheme.primaryContainer
     ) {
         OptionItem(
-            icon = Icons.Default.LibraryBooks,
+            icon = Icons.AutoMirrored.Filled.LibraryBooks,
             title = "Administrar Catàleg",
             subtitle = "Gestionar llibres, autors i exemplars",
             onClick = {
