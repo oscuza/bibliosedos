@@ -1142,7 +1142,25 @@ fun AdminUserSection(
 
 
     }
+// ========== Gestió del Catàleg ==========
 
+    /**
+     * Card per opcions de gestió del catàleg de llibres.
+     * Només disponible per administradors.
+     */
+    SectionCard(
+        title = "Gestió del Catàleg",
+        icon = Icons.Default.MenuBook,
+        containerColor = MaterialTheme.colorScheme.primaryContainer
+    ) {
+        OptionItem(
+            icon = Icons.Default.LibraryBooks,
+            title = "Administrar Catàleg",
+            subtitle = "Gestionar llibres, autors i exemplars",
+            onClick = {
+                navController.navigate(AppScreens.BookManagementScreen.route)
+            })
+    }
     // ========== Panel d'Administració Completa ==========
 
     /**

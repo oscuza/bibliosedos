@@ -279,4 +279,94 @@ sealed class AppScreens(val route: String) {
      *
      */
     object ChangePasswordScreen : AppScreens("change_password")
+
+    /**
+     * Pantalla principal de gestió del catàleg de llibres.
+     *
+     * **Descripció:**
+     * Interfície d'administrador per gestionar llibres, autors i exemplars.
+     * Organitzada en tres pestanyes amb funcionalitats CRUD completes.
+     *
+     * **Funcionalitats:**
+     * - Gestió de llibres (llistar, afegir, editar, eliminar)
+     * - Gestió d'autors (llistar, afegir, eliminar)
+     * - Gestió d'exemplars (llistar, afegir, cercar, eliminar)
+     *
+     * **Permisos:**
+     * - ⚠️ Només accessible per administradors (rol=2)
+     * - 🔑 Requereix token JWT vàlid
+     *
+     * **Ruta:** `book_management_screen`
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see BookManagementScreen
+     * @see BookViewModel
+     */
+    object BookManagementScreen : AppScreens("book_management_screen")
+
+    /**
+     * Pantalla per afegir un nou llibre.
+     *
+     * **Descripció:**
+     * Formulari complet per crear nous llibres amb validació
+     * en temps real i selecció d'autors.
+     *
+     * **Permisos:**
+     * - ⚠️ Només accessible per administradors (rol=2)
+     *
+     * **Ruta:** `add_book_screen`
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see AddBookScreen
+     */
+    object AddBookScreen : AppScreens("add_book_screen")
+
+    /**
+     * Pantalla per editar un llibre existent.
+     *
+     * **Descripció:**
+     * Formulari per modificar les dades d'un llibre existent.
+     * Carrega les dades actuals i permet actualitzar-les.
+     *
+     * **Paràmetres de Ruta:**
+     * - `bookId`: Identificador Long del llibre a editar
+     *
+     * **Permisos:**
+     * - ⚠️ Només accessible per administradors (rol=2)
+     *
+     * **Ruta:** `edit_book_screen/{bookId}`
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see EditBookScreen
+     */
+    object EditBookScreen : AppScreens("edit_book_screen/{bookId}") {
+        /**
+         * Crea una ruta completa amb l'ID del llibre.
+         *
+         * @param bookId Identificador del llibre
+         * @return String amb la ruta completa (ex: "edit_book_screen/42")
+         */
+        fun createRoute(bookId: Long) = "edit_book_screen/$bookId"
+    }
+
+    /**
+     * Pantalla per afegir un nou exemplar.
+     *
+     * **Descripció:**
+     * Formulari per crear nous exemplars físics de llibres existents
+     * amb assignació d'ubicació a la biblioteca.
+     *
+     * **Permisos:**
+     * - ⚠️ Només accessible per administradors (rol=2)
+     *
+     * **Ruta:** `add_exemplar_screen`
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see AddExemplarScreen
+     */
+    object AddExemplarScreen : AppScreens("add_exemplar_screen")
 }

@@ -1,6 +1,9 @@
 package com.oscar.bibliosedaos.data.network
 
 import com.google.gson.annotations.SerializedName
+import com.oscar.bibliosedaos.data.models.Autor
+import com.oscar.bibliosedaos.data.models.Exemplar
+import com.oscar.bibliosedaos.data.models.Llibre
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -8,6 +11,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 /**
  * Interfície Retrofit per a l'API REST de BibliotecaCloud
@@ -432,4 +436,183 @@ interface AuthApiService {
      */
     @POST("biblioteca/auth/logout")
     suspend fun logout(): Response<String>
+
+    // ==================== LLIBRES ====================
+
+    /**
+     * Obté la llista completa de llibres.
+     *
+     * **Endpoint:** GET /biblioteca/llibres/llistarLlibres
+     * **Permisos:** Accessible per tots els usuaris autenticats
+     *
+     * @return Llista de [Llibre] disponibles
+     */
+    @GET("biblioteca/llibres/llistarLlibres")
+    suspend fun getAllLlibres(): List<Llibre>
+
+    /**
+     * Afegeix un nou llibre al sistema.
+     *
+     * **Endpoint:** PUT /biblioteca/llibres/afegirLlibre
+     * **Permisos:** Només administradors (rol=2)
+     *
+     * @param llibre Objecte [Llibre] a crear
+     * @return [Llibre] creat amb ID assignat
+     */
+    @PUT("biblioteca/llibres/afegirLlibre")
+    suspend fun addLlibre(@Body llibre: Llibre): Llibre
+
+    /**
+     * Actualitza les dades d'un llibre existent.
+     *
+     * **Endpoint:** PUT /biblioteca/llibres/actualitzarLlibre/{id}
+     * **Permisos:** Només administradors (rol=2)
+     *
+     * @param id Identificador del llibre
+     * @param llibre Objecte [Llibre] amb les dades actualitzades
+     * @return [Llibre] actualitzat
+     */
+    @PUT("biblioteca/llibres/actualitzarLlibre/{id}")
+    suspend fun updateLlibre(@Path("id") id: Long, @Body llibre: Llibre): Llibre
+
+    /**
+     * Elimina un llibre del sistema.
+     *
+     * **Endpoint:** DELETE /biblioteca/llibres/eliminarLlibre/{id}
+     * **Permisos:** Només administradors (rol=2)
+     *
+     * @param id Identificador del llibre a eliminar
+     * @return Missatge de confirmació
+     */
+    @DELETE("biblioteca/llibres/eliminarLlibre/{id}")
+    suspend fun deleteLlibre(@Path("id") id: Long): String
+
+    /**
+     * Obté un llibre específic per ID.
+     *
+     * **Endpoint:** GET /biblioteca/llibres/trobarLlibrePerId/{id}
+     * **Permisos:** Accessible per tots els usuaris autenticats
+     *
+     * @param id Identificador del llibre
+     * @return [Llibre] trobat
+     */
+    @GET("biblioteca/llibres/trobarLlibrePerId/{id}")
+    suspend fun getLlibreById(@Path("id") id: Long): Llibre
+
+// ==================== AUTORS ====================
+
+    /**
+     * Obté la llista completa d'autors.
+     *
+     * **Endpoint:** GET /biblioteca/autors/llistarAutors
+     * **Permisos:** Accessible per tots els usuaris autenticats
+     *
+     * @return Llista d'[Autor] registrats
+     */
+    @GET("biblioteca/autors/llistarAutors")
+    suspend fun getAllAutors(): List<Autor>
+
+    /**
+     * Afegeix un nou autor al sistema.
+     *
+     * **Endpoint:** PUT /biblioteca/autors/afegirAutor
+     * **Permisos:** Només administradors (rol=2)
+     *
+     * @param autor Objecte [Autor] a crear
+     * @return [Autor] creat amb ID assignat
+     */
+    @PUT("biblioteca/autors/afegirAutor")
+    suspend fun addAutor(@Body autor: Autor): Autor
+
+    /**
+     * Elimina un autor del sistema.
+     *
+     * **Endpoint:** DELETE /biblioteca/autors/eliminarAutor/{id}
+     * **Permisos:** Només administradors (rol=2)
+     *
+     * @param id Identificador de l'autor a eliminar
+     * @return Missatge de confirmació
+     */
+    @DELETE("biblioteca/autors/eliminarAutor/{id}")
+    suspend fun deleteAutor(@Path("id") id: Long): String
+
+// ==================== EXEMPLARS ====================
+
+    /**
+     * Obté la llista completa d'exemplars.
+     *
+     * **Endpoint:** GET /biblioteca/exemplars/llistarExemplars
+     * **Permisos:** Accessible per tots els usuaris autenticats
+     *
+     * @return Llista d'[Exemplar] disponibles
+     */
+    @GET("biblioteca/exemplars/llistarExemplars")
+    suspend fun getAllExemplars(): List<Exemplar>
+
+    /**
+     * Cerca exemplars lliures per títol o autor.
+     *
+     * **Endpoint:** GET /biblioteca/exemplars/llistarExemplarsLliures
+     * **Permisos:** Accessible per tots els usuaris autenticats
+     *
+     * @param titol Títol del llibre a cercar (opcional)
+     * @param autor Nom de l'autor a cercar (opcional)
+     * @return Llista d'[Exemplar] lliures que coincideixen
+     */
+    @GET("biblioteca/exemplars/llistarExemplarsLliures")
+    suspend fun getExemplarsLliures(
+        @Query("titol") titol: String? = null,
+        @Query("autor") autor: String? = null
+    ): List<Exemplar>
+
+    /**
+     * Afegeix un nou exemplar al sistema.
+     *
+     * **Endpoint:** PUT /biblioteca/exemplars/afegirExemplar
+     * **Permisos:** Només administradors (rol=2)
+     *
+     * @param exemplar Objecte [Exemplar] a crear
+     * @return [Exemplar] creat amb ID assignat
+     */
+    @PUT("biblioteca/exemplars/afegirExemplar")
+    suspend fun addExemplar(@Body exemplar: Exemplar): Exemplar
+
+    /**
+     * Actualitza les dades d'un exemplar.
+     *
+     * **Endpoint:** PUT /biblioteca/exemplars/actualitzarExemplar/{id}
+     * **Permisos:** Accessible per usuaris autenticats
+     *
+     * @param id Identificador de l'exemplar
+     * @param exemplar Objecte [Exemplar] amb les dades actualitzades
+     * @return [Exemplar] actualitzat
+     */
+    @PUT("biblioteca/exemplars/actualitzarExemplar/{id}")
+    suspend fun updateExemplar(@Path("id") id: Long, @Body exemplar: Exemplar): Exemplar
+
+    /**
+     * Elimina un exemplar del sistema.
+     *
+     * **Endpoint:** DELETE /biblioteca/exemplars/eliminarExemplar/{id}
+     * **Permisos:** Només administradors (rol=2)
+     *
+     * @param id Identificador de l'exemplar a eliminar
+     * @return Missatge de confirmació
+     */
+    @DELETE("biblioteca/exemplars/eliminarExemplar/{id}")
+    suspend fun deleteExemplar(@Path("id") id: Long): String
+
+    /**
+     * Obté un exemplar específic per ID.
+     *
+     * **Endpoint:** GET /biblioteca/exemplars/trobarExemplarPerId/{id}
+     * **Permisos:** Accessible per tots els usuaris autenticats
+     *
+     * @param id Identificador de l'exemplar
+     * @return [Exemplar] trobat
+     */
+    @GET("biblioteca/exemplars/trobarExemplarPerId/{id}")
+    suspend fun getExemplarById(@Path("id") id: Long): Exemplar
+
+
 }

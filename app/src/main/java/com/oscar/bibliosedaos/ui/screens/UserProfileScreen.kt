@@ -2,10 +2,12 @@ package com.oscar.bibliosedaos.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,7 +84,7 @@ fun UserProfileScreen(
                             launchSingleTop = true
                         }
                     }) {
-                        Icon(Icons.Default.ExitToApp, "Tancar Sessió")
+                        Icon(Icons.AutoMirrored.Filled.ExitToApp, "Tancar Sessió")
                     }
                 }
             )
@@ -173,7 +175,11 @@ fun UserProfileScreen(
                                     )
                                 }
 
-                                Divider()
+                                HorizontalDivider(
+                                    Modifier,
+                                    DividerDefaults.Thickness,
+                                    DividerDefaults.color
+                                )
 
                                 /**
                                  * Files d'informació amb format label: valor.

@@ -21,6 +21,7 @@ import com.oscar.bibliosedaos.ui.screens.*
 import com.oscar.bibliosedaos.ui.theme.BibliotecaCloudTheme
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
 import androidx.lifecycle.lifecycleScope
+import com.oscar.bibliosedaos.ui.viewmodels.BookViewModel
 import kotlinx.coroutines.launch
 
 
@@ -71,6 +72,7 @@ fun AppNavigation() {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel()
     val hasToken = TokenManager.hasToken()
+    val bookViewModel: BookViewModel = viewModel()
     NavHost(
         navController = navController,
         startDestination =
@@ -135,18 +137,47 @@ fun AppNavigation() {
                 authViewModel = authViewModel
             )
         }
-        // ========== PANTALLES FUTURES ==========
-        composable(AppScreens.BooksScreen.route) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.background
-            ) {
-                androidx.compose.foundation.layout.Box(
-                    contentAlignment = androidx.compose.ui.Alignment.Center
-                ) {
-                    androidx.compose.material3.Text("Pantalla de Libros - Próximamente")
-                }
-            }
+        // ========== PANTALLES DE GESTIÓ DE LLIBRES (ADMIN) ==========
+
+// Pantalla principal de gestió del catàleg
+        composable(AppScreens.BookManagementScreen.route) {
+            BookManagementScreen(
+                navController = navController,
+                bookViewModel = bookViewModel
+            )
         }
-    }
+
+// Pantalla per afegir nou llibre
+        composable(AppScreens.AddBookScreen.route) {
+            AddBookScreen(
+                navController = navController,
+                bookViewModel = bookViewModel
+            )
+        }
+
+// Pantalla per editar llibre existent
+
+composable(
+    route = AppScreens.EditBookScreen.route,
+    arguments = listOf(
+        navArgument("bookId") { type = NavType.LongType }
+    )
+) { backStackEntry ->
+    val bookId = backStackEntry.arguments?.getLong("bookId") ?: 0L
+    EditBookScreen(
+        bookId = bookId,
+        navController = navController,
+        bookViewModel = bookViewModel
+    )
+}
+
+
+// Pantalla per afegir nou exemplar
+composable(AppScreens.AddExemplarScreen.route) {
+    AddExemplarScreen(
+        navController = navController,
+        bookViewModel = bookViewModel
+    )
+}
+}
 }
