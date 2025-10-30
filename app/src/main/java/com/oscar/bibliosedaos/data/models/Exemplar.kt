@@ -16,8 +16,6 @@ import com.google.gson.annotations.SerializedName
  *
  * @author Oscar
  * @since 1.0
- * @see Llibre
- * @see Prestec
  */
 data class Exemplar(
     @SerializedName("id")

@@ -71,6 +71,10 @@ fun BookManagementScreen(
     val autorsState by bookViewModel.autorsState.collectAsState()
     val exemplarsState by bookViewModel.exemplarsState.collectAsState()
 
+    // Variables per al diàleg de confirmació d'eliminació
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var llibreToDelete by remember { mutableStateOf<Long?>(null) }
+
     // ========== CÀRREGA INICIAL ==========
 
     LaunchedEffect(Unit) {
@@ -115,6 +119,7 @@ fun BookManagementScreen(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             )
+
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
@@ -200,16 +205,31 @@ fun BookManagementScreen(
 
             when (selectedTab) {
                 0 -> LlibresTab(
-                    llibresState = llibresState,
-                    onEditLlibre = { llibre ->
-                        navController.navigate(
-                            AppScreens.EditBookScreen.createRoute(llibre.id ?: 0)
-                        )
-                    },
-                    onDeleteLlibre = { id ->
-                        bookViewModel.deleteLlibre(id)
+                llibresState = llibresState,
+                onEditLlibre = { llibre ->
+                    navController.navigate(
+                        AppScreens.EditBookScreen.createRoute(llibre.id ?: 0)
+                    )
+                },
+                onDeleteLlibre = { id ->
+                    // Comprovar si té exemplars
+                    val exemplarsDelLlibre = exemplarsState.exemplars.filter {
+                        it.llibre?.id == id
                     }
-                )
+
+                    if (exemplarsDelLlibre.isNotEmpty()) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = "⚠️ Aquest llibre té ${exemplarsDelLlibre.size} exemplar(s). Elimina'ls primer!",
+                                duration = SnackbarDuration.Long
+                            )
+                        }
+                    } else {
+                        llibreToDelete = id
+                        showDeleteDialog = true
+                    }
+                }
+            )
 
                 1 -> AutorsTab(
                     autorsState = autorsState,
@@ -230,6 +250,53 @@ fun BookManagementScreen(
             }
         }
     }
+    // ========== DIÀLEG DE CONFIRMACIÓ D'ELIMINACIÓ ==========
+
+    if (showDeleteDialog && llibreToDelete != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteDialog = false
+                llibreToDelete = null
+            },
+            title = {
+                Text(
+                    "⚠️ Confirmar eliminació",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+            },
+            text = {
+                Text("Estàs segur que vols eliminar aquest llibre? Aquesta acció no es pot desfer.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        bookViewModel.deleteLlibre(llibreToDelete!!)
+                        showDeleteDialog = false
+                        llibreToDelete = null
+
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = "Llibre eliminat correctament",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    }
+                ) {
+                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        llibreToDelete = null
+                    }
+                ) {
+                    Text("Cancel·lar")
+                }
+            }
+        )
+    }
 }
 
 /**
@@ -241,6 +308,35 @@ private fun LlibresTab(
     onEditLlibre: (Llibre) -> Unit,
     onDeleteLlibre: (Long) -> Unit
 ) {
+    if (!llibresState.isLoading && llibresState.llibres.isNotEmpty()) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "📚 Total de llibres:",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    "${llibresState.llibres.size}",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
     when {
         llibresState.isLoading -> {
             Box(
@@ -293,6 +389,7 @@ private fun LlibreCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -394,6 +491,35 @@ private fun AutorsTab(
     autorsState: AutorsUiState,
     onDeleteAutor: (Long) -> Unit
 ) {
+    if (!autorsState.isLoading && autorsState.autors.isNotEmpty()) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "✍️ Total d'autors:",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    "${autorsState.autors.size}",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+        }
+    }
     when {
         autorsState.isLoading -> {
             Box(
@@ -584,7 +710,77 @@ private fun ExemplarsTab(
                 }
             }
         }
+        if (!exemplarsState.isLoading && !exemplarsState.isSearching) {
+            val exemplarsToShow = exemplarsState.searchResults ?: exemplarsState.exemplars
+            if (exemplarsToShow.isNotEmpty()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        // Contador total
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                "${exemplarsToShow.size}",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                            Text(
+                                "Total",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
 
+                        // Contador lliures
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                "${exemplarsToShow.count { it.reservat == "lliure" }}",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                "Lliures",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+
+                        // Contador prestats
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                "${exemplarsToShow.count { it.reservat == "prestat" }}",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                "Prestats",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+        }
         // Llista d'exemplars
         val exemplarsToShow = exemplarsState.searchResults ?: exemplarsState.exemplars
 

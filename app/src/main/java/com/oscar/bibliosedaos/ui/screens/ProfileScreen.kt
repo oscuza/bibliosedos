@@ -1150,7 +1150,7 @@ fun AdminUserSection(
      * Només disponible per administradors.
      */
     SectionCard(
-        title = "Gestió del Catàleg",
+        title = "Gestió de Llibres",
         icon = Icons.AutoMirrored.Filled.MenuBook,
         containerColor = MaterialTheme.colorScheme.primaryContainer
     ) {

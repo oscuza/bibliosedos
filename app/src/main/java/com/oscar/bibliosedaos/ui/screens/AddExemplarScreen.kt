@@ -46,9 +46,6 @@ import kotlinx.coroutines.launch
  *
  * @author Oscar
  * @since 1.0
- * @see BookViewModel.addExemplar
- * @see BookManagementScreen
- * @see Exemplar
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

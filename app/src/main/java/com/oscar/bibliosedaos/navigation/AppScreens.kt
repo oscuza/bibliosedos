@@ -12,8 +12,6 @@ package com.oscar.bibliosedaos.navigation
  *
  * @author Oscar
  * @since 1.0
- * @see androidx.navigation.NavController
- * @see MainActivity.AppNavigation
  */
 sealed class AppScreens(val route: String) {
 
@@ -126,9 +124,7 @@ sealed class AppScreens(val route: String) {
      *
      * @author Oscar
      * @since 1.0
-     * @see AddUserScreen
-     * @see CreateUserRequest
-     */
+       */
     object AddUserScreen : AppScreens("add_user_screen")
 
     // ========== PANTALLAS DE USUARIO ==========
@@ -153,9 +149,7 @@ sealed class AppScreens(val route: String) {
      * -  Requereix token JWT vàlid
      *
      * @author Oscar
-     * @since 1.0
-     * @see ProfileScreen
-     */
+         */
     object UserHomeScreen : AppScreens("user_home_screen")
 
     /**
@@ -192,9 +186,7 @@ sealed class AppScreens(val route: String) {
      *
      * @author Oscar
      * @since 1.0
-     * @see ProfileScreen
-     * @see EditProfileScreen
-     */
+         */
     object UserProfileScreen : AppScreens("user_profile_screen/{userId}") {
         /**
          * Crea una ruta completa amb l'ID de l'usuari.
@@ -300,9 +292,7 @@ sealed class AppScreens(val route: String) {
      *
      * @author Oscar
      * @since 1.0
-     * @see BookManagementScreen
-     * @see BookViewModel
-     */
+        */
     object BookManagementScreen : AppScreens("book_management_screen")
 
     /**
