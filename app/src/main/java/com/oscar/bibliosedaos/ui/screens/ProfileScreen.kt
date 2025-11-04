@@ -29,6 +29,7 @@ import com.oscar.bibliosedaos.navigation.AppScreens
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
 import kotlinx.coroutines.delay
 import com.oscar.bibliosedaos.data.network.User
+import androidx.core.net.toUri
 
 /**
  * Pantalla unificada de perfil d'usuari.
@@ -1165,7 +1166,7 @@ fun AdminUserSection(
         HorizontalDivider()
 
         OptionItem(
-            icon = Icons.Default.MenuBook,
+            icon = Icons.AutoMirrored.Filled.MenuBook,
             title = "Veure Catàleg Complet",
             subtitle = "Explorar tots els llibres de la biblioteca",
             onClick = {
@@ -1186,7 +1187,7 @@ fun AdminUserSection(
             title = "Obrir Panell Web",
             subtitle = "Accedir a totes les funcions administratives",
             onClick = {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://localhost:8080/admin"))
+                val intent = Intent(Intent.ACTION_VIEW, "http://localhost:8080/admin".toUri())
                 context.startActivity(intent)
             })
     }
@@ -1268,7 +1269,7 @@ fun NormalUserSection(
         containerColor = MaterialTheme.colorScheme.primaryContainer
     ) {
         OptionItem(
-            icon = Icons.Default.MenuBook,
+            icon = Icons.AutoMirrored.Filled.MenuBook,
             title = "Catàleg Complet",
             subtitle = "Veure i cercar llibres disponibles",
             onClick = {
