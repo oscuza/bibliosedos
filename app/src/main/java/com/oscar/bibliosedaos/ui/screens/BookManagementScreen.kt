@@ -205,31 +205,31 @@ fun BookManagementScreen(
 
             when (selectedTab) {
                 0 -> LlibresTab(
-                llibresState = llibresState,
-                onEditLlibre = { llibre ->
-                    navController.navigate(
-                        AppScreens.EditBookScreen.createRoute(llibre.id ?: 0)
-                    )
-                },
-                onDeleteLlibre = { id ->
-                    // Comprovar si té exemplars
-                    val exemplarsDelLlibre = exemplarsState.exemplars.filter {
-                        it.llibre?.id == id
-                    }
-
-                    if (exemplarsDelLlibre.isNotEmpty()) {
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                message = "⚠️ Aquest llibre té ${exemplarsDelLlibre.size} exemplar(s). Elimina'ls primer!",
-                                duration = SnackbarDuration.Long
-                            )
+                    llibresState = llibresState,
+                    onEditLlibre = { llibre ->
+                        navController.navigate(
+                            AppScreens.EditBookScreen.createRoute(llibre.id ?: 0)
+                        )
+                    },
+                    onDeleteLlibre = { id ->
+                        // Comprovar si té exemplars
+                        val exemplarsDelLlibre = exemplarsState.exemplars.filter {
+                            it.llibre?.id == id
                         }
-                    } else {
-                        llibreToDelete = id
-                        showDeleteDialog = true
+
+                        if (exemplarsDelLlibre.isNotEmpty()) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    message = "⚠️ Aquest llibre té ${exemplarsDelLlibre.size} exemplar(s). Elimina'ls primer!",
+                                    duration = SnackbarDuration.Long
+                                )
+                            }
+                        } else {
+                            llibreToDelete = id
+                            showDeleteDialog = true
+                        }
                     }
-                }
-            )
+                )
 
                 1 -> AutorsTab(
                     autorsState = autorsState,
@@ -245,6 +245,9 @@ fun BookManagementScreen(
                     },
                     onDeleteExemplar = { id ->
                         bookViewModel.deleteExemplar(id)
+                    },
+                    onChangeStatus = { id, newStatus ->
+                        bookViewModel.updateExemplarStatus(id, newStatus)
                     }
                 )
             }
@@ -631,7 +634,8 @@ private fun AutorCard(
 private fun ExemplarsTab(
     exemplarsState: ExemplarsUiState,
     onSearchExemplars: (String?, String?) -> Unit,
-    onDeleteExemplar: (Long) -> Unit
+    onDeleteExemplar: (Long) -> Unit,
+    onChangeStatus: (Long, String) -> Unit
 ) {
     var searchTitle by remember { mutableStateOf("") }
     var searchAuthor by remember { mutableStateOf("") }
@@ -820,7 +824,10 @@ private fun ExemplarsTab(
                         ExemplarCard(
                             exemplar = exemplar,
                             isDeleting = exemplarsState.isDeleting == exemplar.id,
-                            onDelete = { exemplar.id?.let { onDeleteExemplar(it) } }
+                            onDelete = { exemplar.id?.let { onDeleteExemplar(it) } },
+                            onChangeStatus = { newStatus ->
+                                exemplar.id?.let { onChangeStatus(it, newStatus) }
+                            }
                         )
                     }
                 }
@@ -836,8 +843,11 @@ private fun ExemplarsTab(
 private fun ExemplarCard(
     exemplar: Exemplar,
     isDeleting: Boolean,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onChangeStatus: (String) -> Unit
 ) {
+    var showStatusDialog by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -896,7 +906,7 @@ private fun ExemplarCard(
                     }
 
                     AssistChip(
-                        onClick = { },
+                        onClick = { showStatusDialog = true },
                         label = { Text(text) },
                         leadingIcon = {
                             Icon(
@@ -934,6 +944,124 @@ private fun ExemplarCard(
             }
         }
     }
+
+    // ========== Diàleg per Canviar Estat ==========
+    if (showStatusDialog) {
+        ChangeStatusDialog(
+            currentStatus = exemplar.reservat,
+            onDismiss = { showStatusDialog = false },
+            onConfirm = { newStatus ->
+                onChangeStatus(newStatus)
+                showStatusDialog = false
+            }
+        )
+    }
+}
+
+/**
+ * Diàleg per canviar l'estat d'un exemplar.
+ */
+@Composable
+private fun ChangeStatusDialog(
+    currentStatus: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var selectedStatus by remember { mutableStateOf(currentStatus) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Canviar Estat de l'Exemplar") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Selecciona el nou estat:",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                // Opció: Lliure
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = selectedStatus == "lliure",
+                        onClick = { selectedStatus = "lliure" }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Lliure (Disponible)")
+                }
+
+                // Opció: Prestat
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = selectedStatus == "prestat",
+                        onClick = { selectedStatus = "prestat" }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Icon(
+                        Icons.Default.Schedule,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Prestat")
+                }
+
+                // Opció: Reservat
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = selectedStatus == "reservat",
+                        onClick = { selectedStatus = "reservat" }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Icon(
+                        Icons.Default.BookmarkBorder,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.tertiary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Reservat")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(selectedStatus) },
+                enabled = selectedStatus != currentStatus
+            ) {
+                Text("Canviar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel·lar")
+            }
+        }
+    )
 }
 
 /**
@@ -981,4 +1109,3 @@ private fun AddAutorDialog(
         }
     )
 }
-

@@ -29,7 +29,6 @@ import com.oscar.bibliosedaos.navigation.AppScreens
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
 import kotlinx.coroutines.delay
 import com.oscar.bibliosedaos.data.network.User
-import androidx.core.net.toUri
 
 /**
  * Pantalla unificada de perfil d'usuari.
@@ -1153,7 +1152,7 @@ fun AdminUserSection(
     SectionCard(
         title = "Gestió de Llibres",
         icon = Icons.AutoMirrored.Filled.MenuBook,
-        containerColor = MaterialTheme.colorScheme.primaryContainer
+        containerColor = MaterialTheme.colorScheme.errorContainer
     ) {
         OptionItem(
             icon = Icons.AutoMirrored.Filled.LibraryBooks,
@@ -1172,25 +1171,18 @@ fun AdminUserSection(
             onClick = {
                 navController.navigate(AppScreens.BooksScreen.route)
             })
-    }
-    // ========== Panel d'Administració Completa ==========
 
-    /**
-     * Secció amb enllaç al panell web.
-     * Obre el navegador amb l'URL del panell d'administració.
-     */
-    SectionCard(
-        title = "Administració Completa", icon = Icons.Default.Computer
-    ) {
+        HorizontalDivider()
+
         OptionItem(
-            icon = Icons.Default.OpenInBrowser,
-            title = "Obrir Panell Web",
-            subtitle = "Accedir a totes les funcions administratives",
+            icon = Icons.AutoMirrored.Filled.MenuBook,
+            title = "Usuaris amb prestecs actius",
+            subtitle = "Explorar tots els usuaris amb prestecs actius de la biblioteca",
             onClick = {
-                val intent = Intent(Intent.ACTION_VIEW, "http://localhost:8080/admin".toUri())
-                context.startActivity(intent)
+                navController.navigate(AppScreens.UsersWithLoansScreen.route)
             })
     }
+
 }
 
 /**
@@ -1269,7 +1261,7 @@ fun NormalUserSection(
         containerColor = MaterialTheme.colorScheme.primaryContainer
     ) {
         OptionItem(
-            icon = Icons.AutoMirrored.Filled.MenuBook,
+            icon = Icons.Default.MenuBook,
             title = "Catàleg Complet",
             subtitle = "Veure i cercar llibres disponibles",
             onClick = {
@@ -1289,19 +1281,7 @@ fun NormalUserSection(
             title = "Préstecs Actius",
             subtitle = "Veure llibres que tinc prestats",
             onClick = {
-                // TODO: REQ 4 - Implementar MyLoansScreen
-                Toast.makeText(context, "Funcionalitat pendent", Toast.LENGTH_SHORT).show()
-            })
-
-        HorizontalDivider()
-
-        OptionItem(
-            icon = Icons.Default.Bookmark,
-            title = "Les Meves Reserves",
-            subtitle = "Veure llibres reservats",
-            onClick = {
-                // TODO: REQ 4 - Implementar MyReservationsScreen
-                Toast.makeText(context, "Funcionalitat pendent", Toast.LENGTH_SHORT).show()
+                navController.navigate(AppScreens.MyLoansScreen.route)
             })
 
         HorizontalDivider()
@@ -1311,7 +1291,7 @@ fun NormalUserSection(
             title = "Historial de Préstecs",
             subtitle = "Veure préstecs anteriors",
             onClick = {
-                // TODO: REQ 4 - Implementar LoanHistoryScreen
+                // TODO: Implementar LoanHistoryScreen
                 Toast.makeText(context, "Funcionalitat pendent", Toast.LENGTH_SHORT).show()
             })
     }

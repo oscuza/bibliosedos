@@ -171,7 +171,7 @@ data class CreateUserRequest(
     // Camp opcional
     @SerializedName("cognom2") val cognom2: String? = null
 
-    )
+)
 
 /**
  * Petició per actualitzar un usuari existent amb TOTS els camps necessaris.
@@ -614,5 +614,71 @@ interface AuthApiService {
     @GET("biblioteca/exemplars/trobarExemplarPerId/{id}")
     suspend fun getExemplarById(@Path("id") id: Long): Exemplar
 
+// ==================== PRÉSTECS ====================
+
+    /**
+     * Obté la llista de préstecs actius d'un usuari específic.
+     *
+     * **Endpoint:** GET /biblioteca/prestecs/llistarPrestecsActius
+     * **Permisos:** Admin pot veure tots, usuari només els seus
+     *
+     * @param usuariId ID de l'usuari (opcional, si null retorna tots els préstecs actius per admin)
+     * @return Llista de [Prestec] actius (dataDevolucio IS NULL)
+     */
+    @GET("biblioteca/prestecs/llistarPrestecsActius")
+    suspend fun getPrestecsActius(
+        @Query("usuariId") usuariId: Long? = null
+    ): List<com.oscar.bibliosedaos.data.models.Prestec>
+
+    /**
+     * Obté l'historial complet de préstecs d'un usuari.
+     *
+     * **Endpoint:** GET /biblioteca/prestecs/llistarPrestecs
+     * **Permisos:** Admin pot veure tots, usuari només els seus
+     *
+     * @param usuariId ID de l'usuari (opcional)
+     * @return Llista de tots els [Prestec] (actius i històrics)
+     */
+    @GET("biblioteca/prestecs/llistarPrestecs")
+    suspend fun getAllPrestecs(
+        @Query("usuariId") usuariId: Long? = null
+    ): List<com.oscar.bibliosedaos.data.models.Prestec>
+
+    /**
+     * Crea un nou préstec de llibre.
+     *
+     * **Endpoint:** POST /biblioteca/prestecs/afegirPrestec
+     * **Permisos:** Només administradors (rol=2)
+     *
+     * **Validacions:**
+     * - L'exemplar ha d'estar disponible (estat "lliure")
+     * - Si l'exemplar ja està prestat, llança ExemplarReservatException
+     * - Marca l'exemplar com "prestat" automàticament
+     *
+     * @param prestec Objecte [CreatePrestecRequest] amb les dades del préstec
+     * @return [Prestec] creat amb ID assignat
+     * @throws retrofit2.HttpException si l'exemplar ja està prestat (400)
+     */
+    @POST("biblioteca/prestecs/afegirPrestec")
+    suspend fun createPrestec(
+        @Body prestec: com.oscar.bibliosedaos.data.models.CreatePrestecRequest
+    ): com.oscar.bibliosedaos.data.models.Prestec
+
+    /**
+     * Marca un préstec com a retornat.
+     *
+     * **Endpoint:** PUT /biblioteca/prestecs/ferDevolucio/{prestecId}
+     * **Permisos:** Admin o propietari del préstec
+     *
+     * **Accions:**
+     * - Actualitza dataDevolucio amb la data actual
+     * - Marca l'exemplar com "lliure" automàticament
+     *
+     * @param prestecId ID del préstec a retornar
+     * @return Missatge de confirmació
+     * @throws retrofit2.HttpException si el préstec no existeix (404)
+     */
+    @PUT("biblioteca/prestecs/ferDevolucio/{prestecId}")
+    suspend fun retornarPrestec(@Path("prestecId") prestecId: Long?): String
 
 }

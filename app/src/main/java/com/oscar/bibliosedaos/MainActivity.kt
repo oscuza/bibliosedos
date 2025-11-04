@@ -22,6 +22,7 @@ import com.oscar.bibliosedaos.ui.theme.BibliotecaCloudTheme
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
 import androidx.lifecycle.lifecycleScope
 import com.oscar.bibliosedaos.ui.viewmodels.BookViewModel
+import com.oscar.bibliosedaos.ui.viewmodels.LoanViewModel
 import kotlinx.coroutines.launch
 
 
@@ -39,7 +40,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
     /**
      * Logout automàtic quan l'app es destrueix
      * (usuari tanca l'app o el sistema el finalitza)
@@ -67,12 +67,14 @@ class MainActivity : ComponentActivity() {
 }
 
 
+
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel()
     val hasToken = TokenManager.hasToken()
     val bookViewModel: BookViewModel = viewModel()
+    val loanViewModel: LoanViewModel = viewModel()
     NavHost(
         navController = navController,
         startDestination =
@@ -172,7 +174,7 @@ fun AppNavigation() {
         }
 
 
-        // Pantalla per afegir nou exemplar
+// Pantalla per afegir nou exemplar
         composable(AppScreens.AddExemplarScreen.route) {
             AddExemplarScreen(
                 navController = navController,
@@ -180,7 +182,7 @@ fun AppNavigation() {
             )
         }
 
-        // ========== PANTALLA DE CATÀLEG DE LLIBRES (USUARIS) ==========
+// ========== PANTALLA DE CATÀLEG DE LLIBRES (USUARIS) ==========
 
         /**
          * Pantalla del catàleg de llibres.
@@ -191,6 +193,48 @@ fun AppNavigation() {
             BooksScreen(
                 navController = navController,
                 bookViewModel = bookViewModel,
+                authViewModel = authViewModel,
+                loanViewModel = loanViewModel
+            )
+        }
+
+// ========== PANTALLA DE PRÉSTECS ACTIUS ==========
+
+        /**
+         * Pantalla de préstecs actius de l'usuari.
+         * Mostra els llibres que l'usuari té prestats actualment.
+         * Accepta userId opcional per veure préstecs d'altres usuaris (admin).
+         */
+        composable(
+            route = AppScreens.MyLoansScreen.route,
+            arguments = listOf(
+                navArgument("userId") {
+                    type = NavType.LongType
+                    defaultValue = -1L  // -1 indica "usuari actual"
+                    nullable = false
+                }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getLong("userId") ?: -1L
+
+            MyLoansScreen(
+                navController = navController,
+                loanViewModel = loanViewModel,
+                authViewModel = authViewModel,
+                userId = if (userId == -1L) null else userId
+            )
+        }
+
+        // ========== PANTALLA D'USUARIS AMB PRÉSTECS (ADMIN) ==========
+
+        /**
+         * Pantalla que mostra tots els usuaris amb préstecs actius.
+         * Només accessible per administradors.
+         */
+        composable(AppScreens.UsersWithLoansScreen.route) {
+            UsersWithLoansScreen(
+                navController = navController,
+                loanViewModel = loanViewModel,
                 authViewModel = authViewModel
             )
         }

@@ -211,15 +211,16 @@ fun AdminHomeScreen(
         },
         floatingActionButton = {
             /**
-             * Botó d'acció flotant per afegir nous usuaris.
+             * Botó flotant per afegir un nou usuari.
              * Navega a AddUserScreen.
              */
             FloatingActionButton(
                 onClick = {
                     navController.navigate(AppScreens.AddUserScreen.route)
-                }
+                },
+                containerColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(Icons.Default.Add, "Afegir Usuari")
+                Icon(Icons.Default.PersonAdd, "Afegir Usuari")
             }
         }
     ) { paddingValues ->
@@ -244,7 +245,7 @@ fun AdminHomeScreen(
                 // ========== Estat: Error ==========
                 userListState.error != null -> {
                     /**
-                     * Missatge d'error amb icona quan falla la càrrega.
+                     * Missatge d'error quan falla la càrrega d'usuaris.
                      */
                     Column(
                         modifier = Modifier
@@ -333,6 +334,7 @@ fun AdminHomeScreen(
                                 }
                             }
                         }
+
                         // ========== Card de Cerca d'Usuaris ==========
                         item {
                             Card(
@@ -383,6 +385,61 @@ fun AdminHomeScreen(
                                         Icons.Default.ChevronRight,
                                         contentDescription = "Anar a cerca",
                                         tint = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                }
+                            }
+                        }
+
+                        // ========== NOVA CARD: Usuaris amb Préstecs ==========
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        navController.navigate(AppScreens.UsersWithLoansScreen.route)
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.MenuBook,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            modifier = Modifier.size(32.dp)
+                                        )
+                                        Column {
+                                            Text(
+                                                "Usuaris amb Préstecs",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                            Text(
+                                                "Gestionar llibres prestats",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(
+                                                    alpha = 0.7f
+                                                )
+                                            )
+                                        }
+                                    }
+                                    Icon(
+                                        Icons.Default.ChevronRight,
+                                        contentDescription = "Veure usuaris amb préstecs",
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
                                     )
                                 }
                             }

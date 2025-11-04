@@ -394,6 +394,55 @@ class BookViewModel : ViewModel() {
     }
 
     /**
+     * Actualitza l'estat (disponibilitat) d'un exemplar.
+     *
+     * **Estats possibles:**
+     * - "lliure": Disponible per prestar
+     * - "prestat": Actualment en préstec
+     * - "reservat": Reservat per un usuari
+     *
+     * **Ús:**
+     * Permet a l'admin canviar manualment l'estat d'un exemplar
+     * per corregir errors o gestionar situacions especials.
+     *
+     * @param exemplarId ID de l'exemplar a actualitzar
+     * @param nouEstat Nou estat: "lliure", "prestat" o "reservat"
+     */
+    fun updateExemplarStatus(exemplarId: Long, nouEstat: String) {
+        viewModelScope.launch {
+            _exemplarsState.value = _exemplarsState.value.copy(isDeleting = exemplarId)
+
+            try {
+                // Obtenir l'exemplar actual
+                val exemplar = _exemplarsState.value.exemplars.find { it.id == exemplarId }
+
+                if (exemplar == null) {
+                    _exemplarsState.value = _exemplarsState.value.copy(
+                        isDeleting = null,
+                        error = "Exemplar no trobat"
+                    )
+                    return@launch
+                }
+
+                // Crear exemplar actualitzat amb nou estat
+                val exemplarActualitzat = exemplar.copy(reservat = nouEstat)
+
+                // Enviar al backend
+                api.updateExemplar(exemplarId, exemplarActualitzat)
+
+                // Recarregar la llista
+                loadExemplars()
+
+            } catch (e: Exception) {
+                _exemplarsState.value = _exemplarsState.value.copy(
+                    isDeleting = null,
+                    error = "Error actualitzant estat: ${e.message}"
+                )
+            }
+        }
+    }
+
+    /**
      * Neteja els missatges d'error.
      */
     fun clearErrors() {

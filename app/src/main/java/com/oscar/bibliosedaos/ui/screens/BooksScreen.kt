@@ -1,17 +1,18 @@
 package com.oscar.bibliosedaos.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -22,6 +23,7 @@ import com.oscar.bibliosedaos.data.network.TokenManager
 import com.oscar.bibliosedaos.navigation.AppScreens
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
 import com.oscar.bibliosedaos.ui.viewmodels.BookViewModel
+import com.oscar.bibliosedaos.ui.viewmodels.LoanViewModel
 import kotlinx.coroutines.delay
 
 /**
@@ -38,8 +40,8 @@ import kotlinx.coroutines.delay
  * - Indicador visual de disponibilitat per cada llibre
  * - Comptador d'exemplars: disponibles vs totals
  * - Estats dels exemplars: Lliure, Prestat, Reservat
- * - Cerca per títol o autor (futur)
- * - Filtres per disponibilitat (futur)
+ * - Cerca per títol o autor
+ * - **Préstec de llibres:** Botó per prestar exemplars lliures
  *
  * **Càlcul de Disponibilitat:**
  * - **Lliure:** exemplar.reservat == "lliure"
@@ -49,6 +51,7 @@ import kotlinx.coroutines.delay
  * **Permisos:**
  * - 👥 Accessible per usuaris normals i administradors
  * - 🔒 Requereix token JWT vàlid
+ * - 📚 Préstec: Backend només permet a admins, però la UI permet a tots (validació backend)
  *
  * **Navegació:**
  * - **Entrada:** Des de ProfileScreen (qualsevol rol)
@@ -57,19 +60,22 @@ import kotlinx.coroutines.delay
  * @param navController Controlador de navegació
  * @param bookViewModel ViewModel per gestionar llibres i exemplars
  * @param authViewModel ViewModel per informació de l'usuari
+ * @param loanViewModel ViewModel per gestionar préstecs
  *
  * @author Oscar
  * @since 1.0
  * @see Llibre
  * @see Exemplar
  * @see BookViewModel
+ * @see LoanViewModel
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BooksScreen(
     navController: NavController,
     bookViewModel: BookViewModel,
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    loanViewModel: LoanViewModel
 ) {
     // ========== Estats Observables ==========
 
@@ -90,6 +96,13 @@ fun BooksScreen(
      */
     val loginState by authViewModel.loginUiState.collectAsState()
 
+    /**
+     * Estat de creació de préstec.
+     */
+    val createLoanState by loanViewModel.createLoanState.collectAsState()
+
+    val context = LocalContext.current
+
     // ========== Estats Locals ==========
 
     /**
@@ -107,6 +120,20 @@ fun BooksScreen(
      */
     var selectedBook by remember { mutableStateOf<Llibre?>(null) }
 
+    /**
+     * Exemplar seleccionat per prestar.
+     */
+    var exemplarToLoan by remember { mutableStateOf<Long?>(null) }
+
+    /**
+     * Diàleg de confirmació de préstec.
+     */
+    var showLoanDialog by remember { mutableStateOf(false) }
+
+    // Determinar si l'usuari és admin
+    val isAdmin = loginState.authResponse?.rol == 2
+    val currentUserId = loginState.authResponse?.id
+
     // ========== Càrrega Inicial ==========
 
     /**
@@ -123,6 +150,37 @@ fun BooksScreen(
             navController.navigate(AppScreens.LoginScreen.route) {
                 popUpTo(0) { inclusive = true }
             }
+        }
+    }
+
+    // ========== Gestió d'Èxit de Préstec ==========
+
+    LaunchedEffect(createLoanState.success) {
+        if (createLoanState.success) {
+            Toast.makeText(
+                context,
+                createLoanState.successMessage ?: "Préstec creat correctament",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            // Refrescar llibres i exemplars
+            bookViewModel.loadLlibres()
+            bookViewModel.loadExemplars()
+
+            // Reiniciar estats
+            loanViewModel.resetForms()
+            showLoanDialog = false
+            exemplarToLoan = null
+            selectedBook = null
+        }
+    }
+
+    // ========== Mostrar Errors de Préstec ==========
+
+    createLoanState.error?.let { error ->
+        LaunchedEffect(error) {
+            Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+            loanViewModel.clearErrors()
         }
     }
 
@@ -382,7 +440,90 @@ fun BooksScreen(
         BookDetailsDialog(
             llibre = llibre,
             exemplars = exemplarsState.exemplars,
-            onDismiss = { selectedBook = null }
+            onDismiss = { selectedBook = null },
+            onLoanClick = if (isAdmin || true) { // Permetre a tots (backend validarà)
+                { exemplarId ->
+                    exemplarToLoan = exemplarId
+                    showLoanDialog = true
+                }
+            } else null
+        )
+    }
+
+    // ========== Diàleg de Confirmació de Préstec ==========
+    if (showLoanDialog && exemplarToLoan != null && currentUserId != null) {
+        val exemplar = exemplarsState.exemplars.find { it.id == exemplarToLoan }
+
+        AlertDialog(
+            onDismissRequest = {
+                showLoanDialog = false
+                exemplarToLoan = null
+            },
+            title = { Text("Confirmar Préstec") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Estàs segur que vols prestar aquest llibre?")
+                    Spacer(Modifier.height(4.dp))
+
+                    exemplar?.let {
+                        Text(
+                            text = "📚 ${it.llibre?.titol ?: "Desconegut"}",
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "✍️ ${it.llibre?.autor?.nom ?: "Desconegut"}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = "📍 Ubicació: ${it.lloc}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (!isAdmin) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "ℹ️ El préstec es registrarà al teu nom",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // Crear préstec
+                        loanViewModel.createLoan(
+                            usuariId = currentUserId,
+                            exemplarId = exemplarToLoan!!
+                        )
+                    },
+                    enabled = !createLoanState.isSubmitting
+                ) {
+                    if (createLoanState.isSubmitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Confirmar")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showLoanDialog = false
+                        exemplarToLoan = null
+                    },
+                    enabled = !createLoanState.isSubmitting
+                ) {
+                    Text("Cancel·lar")
+                }
+            }
         )
     }
 }
@@ -713,10 +854,12 @@ fun InfoChip(
  * **Descripció:**
  * Mostra tota la informació del llibre incloent l'estat detallat
  * de tots els seus exemplars físics amb ubicació i disponibilitat.
+ * Inclou opció per prestar el llibre si hi ha exemplars disponibles.
  *
  * @param llibre Llibre a mostrar
  * @param exemplars Llista de tots els exemplars
  * @param onDismiss Callback per tancar el diàleg
+ * @param onLoanClick Callback per iniciar préstec amb l'ID de l'exemplar
  *
  * @author Oscar
  * @since 1.0
@@ -725,10 +868,12 @@ fun InfoChip(
 fun BookDetailsDialog(
     llibre: Llibre,
     exemplars: List<Exemplar>,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onLoanClick: ((Long) -> Unit)? = null
 ) {
     // Filtrar exemplars d'aquest llibre
     val bookExemplars = exemplars.filter { it.llibre?.id == llibre.id }
+    val hasAvailableExemplars = bookExemplars.any { it.reservat == "lliure" }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -779,7 +924,12 @@ fun BookDetailsDialog(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         bookExemplars.forEach { exemplar ->
-                            ExemplarItem(exemplar)
+                            ExemplarItem(
+                                exemplar = exemplar,
+                                onLoanClick = if (exemplar.reservat == "lliure" && onLoanClick != null) {
+                                    { onLoanClick(exemplar.id!!) }
+                                } else null
+                            )
                         }
                     }
                 }
@@ -826,15 +976,19 @@ fun DetailRow(label: String, value: String) {
  *
  * **Descripció:**
  * Mostra la informació d'un exemplar físic individual:
- * ubicació, estat (lliure/prestat/reservat).
+ * ubicació, estat (lliure/prestat/reservat) i botó per prestar si està lliure.
  *
  * @param exemplar Exemplar a mostrar
+ * @param onLoanClick Callback per prestar aquest exemplar (null si no disponible)
  *
  * @author Oscar
  * @since 1.0
  */
 @Composable
-fun ExemplarItem(exemplar: Exemplar) {
+fun ExemplarItem(
+    exemplar: Exemplar,
+    onLoanClick: (() -> Unit)? = null
+) {
     val (statusColor, statusText, statusIcon) = when (exemplar.reservat) {
         "lliure" -> Triple(
             MaterialTheme.colorScheme.primaryContainer,
@@ -854,7 +1008,7 @@ fun ExemplarItem(exemplar: Exemplar) {
         else -> Triple(
             MaterialTheme.colorScheme.surfaceVariant,
             "Desconegut",
-            Icons.AutoMirrored.Filled.Help
+            Icons.Default.Help
         )
     }
 
@@ -893,26 +1047,49 @@ fun ExemplarItem(exemplar: Exemplar) {
                 )
             }
 
-            // Badge d'estat
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                shape = MaterialTheme.shapes.extraSmall
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+            // Badge d'estat o botó de préstec
+            if (onLoanClick != null && exemplar.reservat == "lliure") {
+                // Botó de préstec per exemplars lliures
+                Button(
+                    onClick = onLoanClick,
+                    modifier = Modifier.height(36.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     Icon(
-                        statusIcon,
+                        Icons.Default.Add,
                         contentDescription = null,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(16.dp)
                     )
+                    Spacer(Modifier.width(4.dp))
                     Text(
-                        text = statusText,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
+                        text = "Prestar",
+                        style = MaterialTheme.typography.labelSmall
                     )
+                }
+            } else {
+                // Badge d'estat normal
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = MaterialTheme.shapes.extraSmall
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            statusIcon,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = statusText,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }

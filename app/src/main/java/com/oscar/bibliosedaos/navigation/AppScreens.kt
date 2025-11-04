@@ -117,14 +117,14 @@ sealed class AppScreens(val route: String) {
      * - Les contrasenyes han de coincidir
      *
      * **Requeriments:**
-     * - ️ Només accessible per administradors
-     * - ️ Requereix token JWT vàlid
+     * - ⚠️ Només accessible per administradors
+     * - 🔒 Requereix token JWT vàlid
      *
 
      *
      * @author Oscar
      * @since 1.0
-       */
+     */
     object AddUserScreen : AppScreens("add_user_screen")
 
     // ========== PANTALLAS DE USUARIO ==========
@@ -149,7 +149,7 @@ sealed class AppScreens(val route: String) {
      * -  Requereix token JWT vàlid
      *
      * @author Oscar
-         */
+     */
     object UserHomeScreen : AppScreens("user_home_screen")
 
     /**
@@ -186,7 +186,7 @@ sealed class AppScreens(val route: String) {
      *
      * @author Oscar
      * @since 1.0
-         */
+     */
     object UserProfileScreen : AppScreens("user_profile_screen/{userId}") {
         /**
          * Crea una ruta completa amb l'ID de l'usuari.
@@ -286,13 +286,13 @@ sealed class AppScreens(val route: String) {
      *
      * **Permisos:**
      * - ⚠️ Només accessible per administradors (rol=2)
-     * - 🔑 Requereix token JWT vàlid
+     * - 🔒 Requereix token JWT vàlid
      *
      * **Ruta:** `book_management_screen`
      *
      * @author Oscar
      * @since 1.0
-        */
+     */
     object BookManagementScreen : AppScreens("book_management_screen")
 
     /**
@@ -359,4 +359,71 @@ sealed class AppScreens(val route: String) {
      * @see AddExemplarScreen
      */
     object AddExemplarScreen : AppScreens("add_exemplar_screen")
+
+    /**
+     * Pantalla de préstecs actius de l'usuari.
+     *
+     * **Descripció:**
+     * Mostra els llibres prestats d'un usuari. Pot funcionar en dos modes:
+     * - Sense userId: mostra els préstecs de l'usuari actual
+     * - Amb userId: mostra els préstecs d'un usuari específic (administrador)
+     *
+     * **Funcionalitats:**
+     * - Llistat de préstecs actius
+     * - Informació del llibre i data del préstec
+     * - Botó per retornar llibre
+     * - Refrescar llista
+     *
+     * **Permisos:**
+     * - 👥 Usuari normal: veu només els seus préstecs
+     * - 👨‍💼 Administrador: pot veure préstecs de tots els usuaris
+     *
+     * **Paràmetres de Ruta:**
+     * - `userId`: (Opcional) Identificador de l'usuari. Si no es proporciona,
+     *   mostra els préstecs de l'usuari autenticat.
+     *
+     * **Ruta:** `my_loans_screen?userId={userId}` o `my_loans_screen`
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see MyLoansScreen
+     */
+    object MyLoansScreen : AppScreens("my_loans_screen?userId={userId}") {
+        /**
+         * Crea una ruta per veure els préstecs d'un usuari específic.
+         *
+         * @param userId Identificador de l'usuari
+         * @return String amb la ruta completa
+         */
+        fun createRoute(userId: Long) = "my_loans_screen?userId=$userId"
+
+        /**
+         * Ruta per veure els préstecs de l'usuari actual (sense paràmetres).
+         */
+        const val routeWithoutParams = "my_loans_screen"
+    }
+
+    /**
+     * Pantalla de llistat d'usuaris amb préstecs actius.
+     *
+     * **Descripció:**
+     * Pantalla exclusiva per administradors que mostra tots els usuaris
+     * que tenen llibres prestats actualment.
+     *
+     * **Funcionalitats:**
+     * - Llistat d'usuaris amb préstecs actius
+     * - Informació de cada usuari i nombre de llibres prestats
+     * - Navegació als préstecs de cada usuari
+     *
+     * **Permisos:**
+     * - ⚠️ Només accessible per administradors (rol=2)
+     * - 🔒 Requereix token JWT vàlid
+     *
+     * **Ruta:** `users_with_loans`
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see UsersWithLoansScreen
+     */
+    object UsersWithLoansScreen : AppScreens("users_with_loans")
 }
