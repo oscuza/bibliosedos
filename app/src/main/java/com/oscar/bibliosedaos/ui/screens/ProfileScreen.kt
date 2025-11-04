@@ -1161,6 +1161,16 @@ fun AdminUserSection(
             onClick = {
                 navController.navigate(AppScreens.BookManagementScreen.route)
             })
+
+        HorizontalDivider()
+
+        OptionItem(
+            icon = Icons.Default.MenuBook,
+            title = "Veure Catàleg Complet",
+            subtitle = "Explorar tots els llibres de la biblioteca",
+            onClick = {
+                navController.navigate(AppScreens.BooksScreen.route)
+            })
     }
     // ========== Panel d'Administració Completa ==========
 
@@ -1244,6 +1254,26 @@ fun NormalUserSection(
                     navController.navigate("change_password")
                 })
         }
+    }
+
+    // ========== Explorar Catàleg ==========
+
+    /**
+     * Card per explorar el catàleg de llibres.
+     * Permet veure tots els llibres disponibles i cercar per títol o autor.
+     */
+    SectionCard(
+        title = "Catàleg de Llibres",
+        icon = Icons.AutoMirrored.Filled.MenuBook,
+        containerColor = MaterialTheme.colorScheme.primaryContainer
+    ) {
+        OptionItem(
+            icon = Icons.Default.MenuBook,
+            title = "Catàleg Complet",
+            subtitle = "Veure i cercar llibres disponibles",
+            onClick = {
+                navController.navigate(AppScreens.BooksScreen.route)
+            })
     }
 
     // ========== Gestió de Préstecs ==========

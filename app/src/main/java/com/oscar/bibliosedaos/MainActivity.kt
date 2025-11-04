@@ -39,6 +39,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
     /**
      * Logout automàtic quan l'app es destrueix
      * (usuari tanca l'app o el sistema el finalitza)
@@ -64,7 +65,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
 
 
 @Composable
@@ -157,27 +157,42 @@ fun AppNavigation() {
 
 // Pantalla per editar llibre existent
 
-composable(
-    route = AppScreens.EditBookScreen.route,
-    arguments = listOf(
-        navArgument("bookId") { type = NavType.LongType }
-    )
-) { backStackEntry ->
-    val bookId = backStackEntry.arguments?.getLong("bookId") ?: 0L
-    EditBookScreen(
-        bookId = bookId,
-        navController = navController,
-        bookViewModel = bookViewModel
-    )
-}
+        composable(
+            route = AppScreens.EditBookScreen.route,
+            arguments = listOf(
+                navArgument("bookId") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val bookId = backStackEntry.arguments?.getLong("bookId") ?: 0L
+            EditBookScreen(
+                bookId = bookId,
+                navController = navController,
+                bookViewModel = bookViewModel
+            )
+        }
 
 
-// Pantalla per afegir nou exemplar
-composable(AppScreens.AddExemplarScreen.route) {
-    AddExemplarScreen(
-        navController = navController,
-        bookViewModel = bookViewModel
-    )
-}
-}
+        // Pantalla per afegir nou exemplar
+        composable(AppScreens.AddExemplarScreen.route) {
+            AddExemplarScreen(
+                navController = navController,
+                bookViewModel = bookViewModel
+            )
+        }
+
+        // ========== PANTALLA DE CATÀLEG DE LLIBRES (USUARIS) ==========
+
+        /**
+         * Pantalla del catàleg de llibres.
+         * Accessible per usuaris normals i administradors.
+         * Mostra tots els llibres amb informació de disponibilitat.
+         */
+        composable(AppScreens.BooksScreen.route) {
+            BooksScreen(
+                navController = navController,
+                bookViewModel = bookViewModel,
+                authViewModel = authViewModel
+            )
+        }
+    }
 }
