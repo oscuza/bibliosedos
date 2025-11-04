@@ -1,7 +1,6 @@
 package com.oscar.bibliosedaos.data.models
 
 import com.google.gson.annotations.SerializedName
-import java.time.LocalDate
 
 /**
  * Model de dades per representar un préstec de llibre.

@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -441,12 +442,12 @@ fun BooksScreen(
             llibre = llibre,
             exemplars = exemplarsState.exemplars,
             onDismiss = { selectedBook = null },
-            onLoanClick = if (isAdmin || true) { // Permetre a tots (backend validarà)
+            onLoanClick = run { // Permetre a tots (backend validarà)
                 { exemplarId ->
                     exemplarToLoan = exemplarId
                     showLoanDialog = true
                 }
-            } else null
+            }
         )
     }
 
@@ -1008,7 +1009,7 @@ fun ExemplarItem(
         else -> Triple(
             MaterialTheme.colorScheme.surfaceVariant,
             "Desconegut",
-            Icons.Default.Help
+            Icons.AutoMirrored.Filled.Help
         )
     }
 

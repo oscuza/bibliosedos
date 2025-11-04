@@ -25,21 +25,21 @@ import com.oscar.bibliosedaos.ui.viewmodels.LoanViewModel
  *
  * **Descripció:**
  * Pantalla exclusiva per a administradors que mostra un llistat de tots els usuaris
- * que tenen llibres prestats actualment. Utilitza els endpoints existents del backend
- * sense necessitat de modificacions.
+ * que tenen llibres prestats actualment.
  *
  * **Implementació:**
  * Aquesta versió NO requereix modificar el backend. Funciona de la següent manera:
- * 1. Carrega tots els usuaris del sistema
- * 2. Per cada usuari, consulta si té préstecs actius
- * 3. Filtra i mostra només els usuaris amb préstecs
+ * 1. Carrega tots els préstecs actius del sistema (usuariId = null)
+ * 2. Extreu els usuaris únics d'aquests préstecs
+ * 3. Compta quants préstecs té cada usuari
+ * 4. Mostra només els usuaris amb almenys un préstec actiu
  *
  * **Funcionalitats:**
  * - Llistat d'usuaris amb préstecs actius
  * - Indicador del nombre de llibres prestats per usuari
  * - Navegació ràpida als préstecs de cada usuari
  * - Refrescament automàtic al tornar a la pantalla
- * - Indicadors visuals segons quantitat de préstecs
+ * - Colors segons la quantitat de préstecs
  *
  * **Accés:**
  * Només accessible per usuaris amb rol d'administrador (rol=2).
@@ -70,9 +70,10 @@ fun UsersWithLoansScreen(
     // ========== Estats Observables ==========
 
     /**
-     * Estat de la llista d'usuaris (tots els usuaris del sistema).
+     * Estat dels préstecs actius (tots els del sistema).
+     * Utilitzem aquest estat per processar els usuaris amb préstecs.
      */
-    val userListState by authViewModel.userListState.collectAsState()
+    val activeLoansState by loanViewModel.activeLoansState.collectAsState()
 
     /**
      * Estat del login per verificar que és administrador.
@@ -87,19 +88,10 @@ fun UsersWithLoansScreen(
     var isNavigating by remember { mutableStateOf(false) }
 
     /**
-     * Estat de càrrega per processar dades.
-     */
-    var isProcessing by remember { mutableStateOf(true) }
-
-    /**
      * Llista processada d'usuaris amb préstecs.
+     * Aquesta llista es genera a partir dels préstecs actius.
      */
     var usersWithLoans by remember { mutableStateOf<List<UserWithLoansInfo>>(emptyList()) }
-
-    /**
-     * Missatge d'error si n'hi ha.
-     */
-    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // ========== Verificació de Permisos ==========
 
@@ -116,67 +108,62 @@ fun UsersWithLoansScreen(
         }
     }
 
+    // ========== Càrrega Inicial de Dades ==========
+
+    /**
+     * Carrega tots els préstecs actius del sistema.
+     * Passa null com a usuariId per obtenir tots els préstecs.
+     */
+    LaunchedEffect(Unit) {
+        loanViewModel.loadActiveLoans(usuariId = null) // null = tots els préstecs actius
+    }
+
     // ========== Processament de Dades ==========
 
     /**
-     * Effect que processa la llista d'usuaris per obtenir només
-     * els que tenen préstecs actius.
+     * Effect que processa els préstecs actius per obtenir
+     * la llista d'usuaris únics amb els seus comptadors.
      *
-     * Aquest processament es fa en el frontend utilitzant els
-     * endpoints existents, sense modificar el backend.
+     * **Lògica:**
+     * 1. Agrupa préstecs per usuari
+     * 2. Compta quants préstecs té cada usuari
+     * 3. Crea objectes UserWithLoansInfo
+     * 4. Ordena per nom d'usuari
      */
-    LaunchedEffect(userListState.users) {
-        if (userListState.users.isNotEmpty() && !userListState.isLoading) {
-            isProcessing = true
-            errorMessage = null
+    LaunchedEffect(activeLoansState.loans) {
+        if (activeLoansState.loans.isNotEmpty()) {
+            // Agrupa els préstecs per usuari i compta-los
+            val userLoansMap = activeLoansState.loans
+                .mapNotNull { prestec -> prestec.usuari } // Obtenir usuaris no nuls
+                .groupBy { it.id } // Agrupar per ID d'usuari
+                .mapValues { (_, users) -> users.first() to users.size } // (User, count)
 
-            try {
-                // Aquí processionem els usuaris
-                // Nota: Aquesta implementació assumeix que pots consultar
-                // els préstecs de cada usuari individual.
-                // Si tens un mètode que retorna TOTS els préstecs actius,
-                // seria més eficient utilitzar-lo.
-
-                val usersWithActiveLoans = mutableListOf<UserWithLoansInfo>()
-
-                // Per simplicitat en aquesta versió, mostrem tots els usuaris
-                // i l'administrador pot fer clic per veure si tenen préstecs.
-                // En una implementació més avançada, consultaries els préstecs
-                // de cada usuari aquí.
-
-                // VERSIÓ SIMPLIFICADA: Mostra tots els usuaris amb un comptador 0
-                // L'usuari veurà el nombre real en fer clic
-                userListState.users.forEach { user ->
-                    // Pots afegir aquí lògica per consultar préstecs
-                    // Per ara, afegim tots els usuaris
-                    usersWithActiveLoans.add(
-                        UserWithLoansInfo(
-                            userId = user.id,
-                            nick = user.nick,
-                            fullName = "${user.nom} ${user.cognom1 ?: ""}".trim(),
-                            loanCount = 0 // Es veurà en detall en MyLoansScreen
-                        )
-                    )
-                }
-
-                usersWithLoans = usersWithActiveLoans
-                isProcessing = false
-
-            } catch (e: Exception) {
-                errorMessage = "Error en processar usuaris: ${e.localizedMessage}"
-                isProcessing = false
-            }
+            // Crear la llista de UserWithLoansInfo
+            usersWithLoans = userLoansMap.map { (userId, pair) ->
+                val (user, count) = pair
+                UserWithLoansInfo(
+                    userId = userId,
+                    nick = user.nick,
+                    fullName = "${user.nom} ${user.cognom1 ?: ""}".trim(),
+                    loanCount = count
+                )
+            }.sortedBy { it.fullName } // Ordenar per nom
+        } else {
+            usersWithLoans = emptyList()
         }
     }
 
     // ========== Cicle de Vida i Refrescament ==========
 
+    /**
+     * Recarrega els préstecs quan l'usuari torna a la pantalla.
+     */
     val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                authViewModel.loadAllUsers()
+                loanViewModel.loadActiveLoans(usuariId = null)
             }
         }
 
@@ -194,9 +181,9 @@ fun UsersWithLoansScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Usuaris del Sistema")
+                        Text("Usuaris amb Préstecs")
                         Text(
-                            text = "Consulta de préstecs",
+                            text = "${usersWithLoans.size} usuaris amb llibres prestats",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                         )
@@ -207,26 +194,11 @@ fun UsersWithLoansScreen(
                         IconButton(onClick = {
                             if (!isNavigating) {
                                 isNavigating = true
-                                navController.navigate(AppScreens.AdminHomeScreen.route) {
-                                    popUpTo(AppScreens.AdminHomeScreen.route) {
-                                        inclusive = false
-                                    }
-                                    launchSingleTop = true
-                                }
+                                navController.navigateUp()
                             }
                         }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Tornar enrere"
-                            )
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Enrere")
                         }
-                    }
-                },
-                actions = {
-                    IconButton(onClick = {
-                        authViewModel.loadAllUsers()
-                    }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refrescar")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -243,7 +215,7 @@ fun UsersWithLoansScreen(
         ) {
             when {
                 // ========== Estat: Carregant ==========
-                userListState.isLoading || isProcessing -> {
+                activeLoansState.isLoading -> {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -256,7 +228,7 @@ fun UsersWithLoansScreen(
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            "Carregant usuaris...",
+                            text = "Carregant usuaris amb préstecs...",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -264,57 +236,70 @@ fun UsersWithLoansScreen(
                 }
 
                 // ========== Estat: Error ==========
-                userListState.error != null || errorMessage != null -> {
+                activeLoansState.error != null -> {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp),
+                            .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
                         Icon(
-                            Icons.Default.Error,
+                            Icons.Default.ErrorOutline,
                             contentDescription = null,
                             modifier = Modifier.size(64.dp),
                             tint = MaterialTheme.colorScheme.error
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            text = errorMessage ?: userListState.error ?: "Error desconegut",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyLarge
+                            text = "Error",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error
                         )
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = activeLoansState.error ?: "Error desconegut",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(Modifier.height(24.dp))
                         Button(onClick = {
-                            authViewModel.loadAllUsers()
+                            loanViewModel.loadActiveLoans(usuariId = null)
                         }) {
                             Icon(Icons.Default.Refresh, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text("Reintentar")
+                            Text("Tornar a intentar")
                         }
                     }
                 }
 
-                // ========== Estat: Llista Buida ==========
-                usersWithLoans.isEmpty() -> {
+                // ========== Estat: Sense Usuaris amb Préstecs ==========
+                usersWithLoans.isEmpty() && !activeLoansState.isLoading -> {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp),
+                            .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
                         Icon(
-                            Icons.Default.PersonOff,
+                            Icons.AutoMirrored.Filled.MenuBook,
                             contentDescription = null,
                             modifier = Modifier.size(64.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            text = "No hi ha usuaris al sistema",
-                            style = MaterialTheme.typography.titleMedium,
+                            text = "Cap usuari amb préstecs actius",
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "Tots els llibres han estat retornats",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -346,7 +331,7 @@ fun UsersWithLoansScreen(
                                     ) {
                                         Column {
                                             Text(
-                                                text = "Total d'usuaris",
+                                                text = "Usuaris amb préstecs",
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                                             )
@@ -358,28 +343,50 @@ fun UsersWithLoansScreen(
                                             )
                                         }
 
+                                        Column(
+                                            horizontalAlignment = Alignment.End
+                                        ) {
+                                            Text(
+                                                text = "Total de préstecs",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                            Text(
+                                                text = "${activeLoansState.loans.size}",
+                                                style = MaterialTheme.typography.headlineMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(Modifier.height(12.dp))
+                                    HorizontalDivider()
+                                    Spacer(Modifier.height(12.dp))
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         Icon(
                                             Icons.Default.Info,
                                             contentDescription = null,
-                                            modifier = Modifier.size(32.dp),
+                                            modifier = Modifier.size(20.dp),
                                             tint = MaterialTheme.colorScheme.onSecondaryContainer
                                         )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            text = "Fes clic en un usuari per veure els seus préstecs actius",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                                        )
                                     }
-
-                                    Spacer(Modifier.height(8.dp))
-
-                                    Text(
-                                        text = "Fes clic en un usuari per veure els seus préstecs actius",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-                                    )
                                 }
                             }
                         }
 
                         // ========== Llista de Cards d'Usuaris ==========
                         items(usersWithLoans) { userInfo ->
-                            UserWithLoansCardSimple(
+                            UserWithLoansCard(
                                 userInfo = userInfo,
                                 onClick = {
                                     // Navegar als préstecs de l'usuari
@@ -397,23 +404,36 @@ fun UsersWithLoansScreen(
 }
 
 /**
- * Card d'usuari amb informació bàsica.
+ * Card d'usuari amb informació de préstecs.
  *
  * **Descripció:**
- * Versió simplificada que mostra la informació de l'usuari sense
- * el comptador de préstecs (es veurà en fer clic).
+ * Mostra la informació de l'usuari amb un badge indicant el nombre
+ * de préstecs actius. El color del badge varia segons la quantitat.
  *
- * @param userInfo Informació de l'usuari
+ * @param userInfo Informació de l'usuari amb el comptador de préstecs
  * @param onClick Callback que s'executa en fer clic a la card
  *
  * @author Oscar
  * @since 1.0
  */
 @Composable
-fun UserWithLoansCardSimple(
+fun UserWithLoansCard(
     userInfo: UserWithLoansInfo,
     onClick: () -> Unit
 ) {
+    // Determinar el color del badge segons el nombre de préstecs
+    val badgeColor = when {
+        userInfo.loanCount >= 5 -> MaterialTheme.colorScheme.errorContainer
+        userInfo.loanCount >= 3 -> MaterialTheme.colorScheme.tertiaryContainer
+        else -> MaterialTheme.colorScheme.primaryContainer
+    }
+
+    val badgeTextColor = when {
+        userInfo.loanCount >= 5 -> MaterialTheme.colorScheme.onErrorContainer
+        userInfo.loanCount >= 3 -> MaterialTheme.colorScheme.onTertiaryContainer
+        else -> MaterialTheme.colorScheme.onPrimaryContainer
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -463,26 +483,35 @@ fun UserWithLoansCardSimple(
                 )
             }
 
-            // ========== Icona de Navegació ==========
+            // ========== Badge amb Comptador ==========
 
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = badgeColor
             ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.MenuBook,
-                    contentDescription = "Veure préstecs",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "Préstecs",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.MenuBook,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = badgeTextColor
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "${userInfo.loanCount}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = badgeTextColor
+                    )
+                }
             }
 
             Spacer(Modifier.width(8.dp))
+
+            // ========== Icona de Navegació ==========
 
             Icon(
                 Icons.Default.ChevronRight,
@@ -494,12 +523,12 @@ fun UserWithLoansCardSimple(
 }
 
 /**
- * Data class que representa la informació bàsica d'un usuari.
+ * Data class que representa la informació d'un usuari amb préstecs.
  *
  * @property userId ID únic de l'usuari
  * @property nick Nick o nom d'usuari
  * @property fullName Nom complet de l'usuari (nom + cognoms)
- * @property loanCount Número de préstecs actius (opcional en aquesta versió)
+ * @property loanCount Número de préstecs actius
  *
  * @author Oscar
  * @since 1.0
@@ -508,5 +537,5 @@ data class UserWithLoansInfo(
     val userId: Long,
     val nick: String,
     val fullName: String,
-    val loanCount: Int = 0
+    val loanCount: Int
 )

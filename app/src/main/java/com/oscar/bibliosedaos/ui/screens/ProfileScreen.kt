@@ -1,7 +1,5 @@
 package com.oscar.bibliosedaos.ui.screens
 
-import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -1261,7 +1259,7 @@ fun NormalUserSection(
         containerColor = MaterialTheme.colorScheme.primaryContainer
     ) {
         OptionItem(
-            icon = Icons.Default.MenuBook,
+            icon = Icons.AutoMirrored.Filled.MenuBook,
             title = "Catàleg Complet",
             subtitle = "Veure i cercar llibres disponibles",
             onClick = {

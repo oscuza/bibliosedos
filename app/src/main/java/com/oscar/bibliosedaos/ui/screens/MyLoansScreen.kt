@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.AssignmentReturn
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -280,9 +281,9 @@ private fun LoanCard(
     var showReturnDialog by remember { mutableStateOf(false) }
 
     // Obtenir informació del llibre des de l'exemplar
-    val bookTitle = loan.exemplar?.llibre?.titol ?: "Títol desconegut"
-    val authorName = loan.exemplar?.llibre?.autor?.nom ?: "Autor desconegut"
-    val isbn = loan.exemplar?.llibre?.isbn ?: "ISBN no disponible"
+    val bookTitle = loan.exemplar.llibre?.titol ?: "Títol desconegut"
+    val authorName = loan.exemplar.llibre?.autor?.nom ?: "Autor desconegut"
+    val isbn = loan.exemplar.llibre?.isbn ?: "ISBN no disponible"
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -376,7 +377,7 @@ private fun LoanCard(
                         Text("Retornant...")
                     } else {
                         Icon(
-                            imageVector = Icons.Default.AssignmentReturn,
+                            imageVector = Icons.AutoMirrored.Filled.AssignmentReturn,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -394,7 +395,7 @@ private fun LoanCard(
             onDismissRequest = { showReturnDialog = false },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.AssignmentReturn,
+                    imageVector = Icons.AutoMirrored.Filled.AssignmentReturn,
                     contentDescription = null
                 )
             },
