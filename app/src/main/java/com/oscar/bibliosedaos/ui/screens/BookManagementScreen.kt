@@ -1,8 +1,15 @@
 package com.oscar.bibliosedaos.ui.screens
 
+import android.os.Build
+import androidx.annotation.RequiresApi
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -10,54 +17,39 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.oscar.bibliosedaos.data.models.*
+import com.oscar.bibliosedaos.data.network.User
 import com.oscar.bibliosedaos.navigation.AppScreens
-import com.oscar.bibliosedaos.ui.viewmodels.AutorsUiState
-import com.oscar.bibliosedaos.ui.viewmodels.BookViewModel
-import com.oscar.bibliosedaos.ui.viewmodels.ExemplarsUiState
-import com.oscar.bibliosedaos.ui.viewmodels.LlibresUiState
+import com.oscar.bibliosedaos.ui.viewmodels.*
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 /**
- * Pantalla principal de gestió del catàleg de llibres.
- *
- * **Descripció:**
- * Interfície d'administrador per gestionar tot el catàleg de la biblioteca.
- * Organitzada en tres pestanyes principals:
- * - Llibres: CRUD complet de llibres
- * - Autors: Gestió d'autors
- * - Exemplars: Control d'inventari
- *
- * **Funcionalitats:**
- * - Visualització en llistes amb cards
- * - Botons FAB per afegir nous elements
- * - Opcions d'edició i eliminació
- * - Cerca d'exemplars lliures
- * - Gestió d'errors i estats de càrrega
- *
- * **Permisos:**
- * - ⚠️ Només accessible per administradors (rol=2)
- * - 🔑 Requereix token JWT vàlid
+ * Pantalla principal de gestió del catàleg de llibres amb gestió de préstecs integrada.
  *
  * @param navController Controlador de navegació
  * @param bookViewModel ViewModel per gestió de llibres
- *
- * @author Oscar
- * @since 1.0
- * @see BookViewModel
- * @see AddBookScreen
- * @see AddExemplarScreen
+ * @param authViewModel ViewModel per gestió d'usuaris
+ * @param loanViewModel ViewModel per gestió de préstecs
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookManagementScreen(
     navController: NavController,
-    bookViewModel: BookViewModel = viewModel()
+    bookViewModel: BookViewModel = viewModel(),
+    authViewModel: AuthViewModel = viewModel(),
+    loanViewModel: LoanViewModel = viewModel()
 ) {
     // ========== ESTATS ==========
 
@@ -66,7 +58,7 @@ fun BookManagementScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // Estats observables del ViewModel
+    // Estats observables dels ViewModels
     val llibresState by bookViewModel.llibresState.collectAsState()
     val autorsState by bookViewModel.autorsState.collectAsState()
     val exemplarsState by bookViewModel.exemplarsState.collectAsState()
@@ -99,15 +91,15 @@ fun BookManagementScreen(
         }
     }
 
-    // ========== UI ==========
+    // ========== UI PRINCIPAL ==========
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        "📚 Gestió del Catàleg",
-                        fontWeight = FontWeight.Bold
+                        "Gestió del Catàleg",
+                        style = MaterialTheme.typography.headlineMedium
                     )
                 },
                 navigationIcon = {
@@ -115,55 +107,36 @@ fun BookManagementScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Tornar")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                actions = {
+                    IconButton(
+                        onClick = {
+                            // Recarregar dades
+                            bookViewModel.loadLlibres()
+                            bookViewModel.loadAutors()
+                            bookViewModel.loadExemplars()
+                        }
+                    ) {
+                        Icon(Icons.Default.Refresh, "Actualitzar")
+                    }
+                }
             )
-
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            when (selectedTab) {
-                0 -> { // Llibres
-                    FloatingActionButton(
-                        onClick = { navController.navigate(AppScreens.AddBookScreen.route) },
-                        containerColor = MaterialTheme.colorScheme.primary
-                    ) {
-                        Icon(Icons.Default.Add, "Afegir Llibre")
+            FloatingActionButton(
+                onClick = {
+                    when (selectedTab) {
+                        0 -> navController.navigate(AppScreens.AddBookScreen.route)
+                        1 -> { /* Diàleg per afegir autor */ }
+                        2 -> navController.navigate(AppScreens.AddExemplarScreen.route)
                     }
                 }
-                1 -> { // Autors
-                    var showAutorDialog by remember { mutableStateOf(false) }
-
-                    FloatingActionButton(
-                        onClick = { showAutorDialog = true },
-                        containerColor = MaterialTheme.colorScheme.primary
-                    ) {
-                        Icon(Icons.Default.PersonAdd, "Afegir Autor")
-                    }
-
-                    // Diàleg per afegir autor
-                    if (showAutorDialog) {
-                        AddAutorDialog(
-                            onDismiss = { showAutorDialog = false },
-                            onConfirm = { nom ->
-                                bookViewModel.addAutor(nom)
-                                showAutorDialog = false
-                            }
-                        )
-                    }
-                }
-                2 -> { // Exemplars
-                    FloatingActionButton(
-                        onClick = { navController.navigate(AppScreens.AddExemplarScreen.route) },
-                        containerColor = MaterialTheme.colorScheme.primary
-                    ) {
-                        Icon(Icons.Default.Add, "Afegir Exemplar")
-                    }
-                }
+            ) {
+                Icon(Icons.Default.Add, "Afegir")
             }
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -238,21 +211,19 @@ fun BookManagementScreen(
                     }
                 )
 
-                2 -> ExemplarsTab(
-                    exemplarsState = exemplarsState,
-                    onSearchExemplars = { titol, autor ->
-                        bookViewModel.searchExemplarsLliures(titol, autor)
-                    },
-                    onDeleteExemplar = { id ->
-                        bookViewModel.deleteExemplar(id)
-                    },
-                    onChangeStatus = { id, newStatus ->
-                        bookViewModel.updateExemplarStatus(id, newStatus)
+                // NOVA PESTANYA D'EXEMPLARS AMB GESTIÓ DE PRÉSTECS
+                2 -> ExemplarsTabWithLoans(
+                    bookViewModel = bookViewModel,
+                    authViewModel = authViewModel,
+                    loanViewModel = loanViewModel,
+                    onAddClick = {
+                        navController.navigate(AppScreens.AddExemplarScreen.route)
                     }
                 )
             }
         }
     }
+
     // ========== DIÀLEG DE CONFIRMACIÓ D'ELIMINACIÓ ==========
 
     if (showDeleteDialog && llibreToDelete != null) {
@@ -273,16 +244,9 @@ fun BookManagementScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        bookViewModel.deleteLlibre(llibreToDelete!!)
+                        llibreToDelete?.let { bookViewModel.deleteLlibre(it) }
                         showDeleteDialog = false
                         llibreToDelete = null
-
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                message = "Llibre eliminat correctament",
-                                duration = SnackbarDuration.Short
-                            )
-                        }
                     }
                 ) {
                     Text("Eliminar", color = MaterialTheme.colorScheme.error)
@@ -302,44 +266,14 @@ fun BookManagementScreen(
     }
 }
 
-/**
- * Tab de Llibres: Mostra la llista de llibres amb opcions CRUD.
- */
+// ========== PESTANYA DE LLIBRES (sense canvis) ==========
+
 @Composable
 private fun LlibresTab(
     llibresState: LlibresUiState,
     onEditLlibre: (Llibre) -> Unit,
     onDeleteLlibre: (Long) -> Unit
 ) {
-    if (!llibresState.isLoading && llibresState.llibres.isNotEmpty()) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "📚 Total de llibres:",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    "${llibresState.llibres.size}",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-    }
     when {
         llibresState.isLoading -> {
             Box(
@@ -357,8 +291,7 @@ private fun LlibresTab(
             ) {
                 Text(
                     "No hi ha llibres registrats",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.bodyLarge
                 )
             }
         }
@@ -366,7 +299,7 @@ private fun LlibresTab(
         else -> {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(llibresState.llibres) { llibre ->
@@ -382,147 +315,13 @@ private fun LlibresTab(
     }
 }
 
-/**
- * Card per mostrar la informació d'un llibre.
- */
-@Composable
-private fun LlibreCard(
-    llibre: Llibre,
-    isDeleting: Boolean,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
-) {
+// ========== PESTANYA D'AUTORS (sense canvis) ==========
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = llibre.titol,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                llibre.autor?.let { autor ->
-                    Text(
-                        text = "Autor: ${autor.nom}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    AssistChip(
-                        onClick = { },
-                        label = { Text("ISBN: ${llibre.isbn}") },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Tag,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    )
-
-                    AssistChip(
-                        onClick = { },
-                        label = { Text("${llibre.pagines} pàg.") },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Pages,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    )
-                }
-
-                Text(
-                    text = "Editorial: ${llibre.editorial}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            if (isDeleting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp)
-                )
-            } else {
-                Row {
-                    IconButton(onClick = onEdit) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = "Editar",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    IconButton(onClick = onDelete) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Eliminar",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Tab d'Autors: Mostra la llista d'autors.
- */
 @Composable
 private fun AutorsTab(
     autorsState: AutorsUiState,
     onDeleteAutor: (Long) -> Unit
 ) {
-    if (!autorsState.isLoading && autorsState.autors.isNotEmpty()) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer
-            )
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "✍️ Total d'autors:",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    "${autorsState.autors.size}",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.tertiary
-                )
-            }
-        }
-    }
     when {
         autorsState.isLoading -> {
             Box(
@@ -540,8 +339,7 @@ private fun AutorsTab(
             ) {
                 Text(
                     "No hi ha autors registrats",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.bodyLarge
                 )
             }
         }
@@ -549,7 +347,7 @@ private fun AutorsTab(
         else -> {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(autorsState.autors) { autor ->
@@ -564,9 +362,596 @@ private fun AutorsTab(
     }
 }
 
-/**
- * Card per mostrar la informació d'un autor.
- */
+// ========== NOVA PESTANYA D'EXEMPLARS AMB GESTIÓ DE PRÉSTECS ==========
+
+@RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExemplarsTabWithLoans(
+    bookViewModel: BookViewModel,
+    authViewModel: AuthViewModel,
+    loanViewModel: LoanViewModel,
+    onAddClick: () -> Unit
+) {
+    val exemplarsState by bookViewModel.exemplarsState.collectAsState()
+    val activeLoansState by loanViewModel.activeLoansState.collectAsState()
+    val usersState by authViewModel.allUsersState.collectAsState()
+
+    var showUserSelectionDialog by remember { mutableStateOf(false) }
+    var selectedExemplar by remember { mutableStateOf<Exemplar?>(null) }
+    var targetStatus by remember { mutableStateOf<ExemplarStatus?>(null) }
+
+    val coroutineScope = rememberCoroutineScope()
+
+    // Carregar dades inicials
+    LaunchedEffect(Unit) {
+        bookViewModel.loadExemplars()
+        loanViewModel.loadActiveLoans(null)
+        authViewModel.loadAllUsers()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Títol
+        Text(
+            text = "Gestió d'Exemplars i Préstecs",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        // Llista d'exemplars
+        when {
+            exemplarsState.isLoading -> {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+            }
+
+            exemplarsState.error != null -> {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Text(
+                        text = exemplarsState.error!!,
+                        modifier = Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+
+            exemplarsState.exemplars.isEmpty() -> {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Text(
+                        text = "No hi ha exemplars disponibles",
+                        modifier = Modifier.padding(32.dp).fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+
+            else -> {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(exemplarsState.exemplars) { exemplar ->
+                        ExemplarItemWithLoan(
+                            exemplar = exemplar,
+                            activeLoan = activeLoansState.loans.find {
+                                it.exemplar.id == exemplar.id && it.isActive
+                            },
+                            onStatusClick = { status ->
+                                selectedExemplar = exemplar
+                                targetStatus = status
+
+                                val currentStatus = ExemplarStatus.fromString(exemplar.reservat)
+
+                                when {
+                                    // Retornar préstec
+                                    currentStatus == ExemplarStatus.PRESTAT &&
+                                            status == ExemplarStatus.LLIURE -> {
+                                        val loan = activeLoansState.loans.find {
+                                            it.exemplar.id == exemplar.id && it.isActive
+                                        }
+                                        if (loan != null) {
+                                            coroutineScope.launch {
+                                                loanViewModel.returnLoan(loan.id)
+                                                bookViewModel.updateExemplar(
+                                                    exemplar.id!!,
+                                                    exemplar.copy(reservat = status.value)
+                                                )
+                                                bookViewModel.loadExemplars()
+                                                loanViewModel.loadActiveLoans(null)
+                                            }
+                                        }
+                                    }
+
+                                    // Prestar o reservar
+                                    currentStatus == ExemplarStatus.LLIURE &&
+                                            status != ExemplarStatus.LLIURE -> {
+                                        showUserSelectionDialog = true
+                                    }
+
+                                    // Altres transicions
+                                    else -> {
+                                        coroutineScope.launch {
+                                            bookViewModel.updateExemplar(
+                                                exemplar.id!!,
+                                                exemplar.copy(reservat = status.value)
+                                            )
+                                            bookViewModel.loadExemplars()
+                                        }
+                                    }
+                                }
+                            },
+                            onDelete = {
+                                coroutineScope.launch {
+                                    bookViewModel.deleteExemplar(exemplar.id!!)
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // Diàleg selecció d'usuari
+    if (showUserSelectionDialog && selectedExemplar != null && targetStatus != null) {
+        UserSelectionDialog(
+            users = usersState.users,
+            isLoading = usersState.isLoading,
+            onUserSelected = { user ->
+                coroutineScope.launch {
+                    bookViewModel.updateExemplar(
+                        selectedExemplar!!.id!!,
+                        selectedExemplar!!.copy(reservat = targetStatus!!.value)
+                    )
+
+                    if (targetStatus == ExemplarStatus.PRESTAT) {
+                        val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+                        loanViewModel.createLoan(
+                            usuariId = user.id,
+                            exemplarId = selectedExemplar!!.id!!,
+                            dataPrestec = today
+                        )
+                    }
+
+                    bookViewModel.loadExemplars()
+                    loanViewModel.loadActiveLoans(null)
+
+                    showUserSelectionDialog = false
+                    selectedExemplar = null
+                    targetStatus = null
+                }
+            },
+            onDismiss = {
+                showUserSelectionDialog = false
+                selectedExemplar = null
+                targetStatus = null
+            }
+        )
+    }
+}
+
+// ========== COMPONENT: ITEM D'EXEMPLAR AMB PRÉSTEC ==========
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExemplarItemWithLoan(
+    exemplar: Exemplar,
+    activeLoan: Prestec? = null,
+    onStatusClick: (ExemplarStatus) -> Unit,
+    onDelete: () -> Unit
+) {
+    var showStatusMenu by remember { mutableStateOf(false) }
+    val currentStatus = ExemplarStatus.fromString(exemplar.reservat)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    // Informació del llibre
+                    Text(
+                        text = exemplar.llibre?.titol ?: "Llibre desconegut",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    exemplar.llibre?.autor?.let { autor ->
+                        Text(
+                            text = "Autor: ${autor.nom}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Ubicació
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Place,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = exemplar.lloc,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    // Estat
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Box {
+                        AssistChip(
+                            onClick = { showStatusMenu = true },
+                            label = {
+                                Text(
+                                    text = currentStatus.displayName,
+                                    color = Color.White
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = when(currentStatus) {
+                                        ExemplarStatus.LLIURE -> Icons.Default.CheckCircle
+                                        ExemplarStatus.PRESTAT -> Icons.Default.Person
+                                        ExemplarStatus.RESERVAT -> Icons.Default.Schedule
+                                    },
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = currentStatus.color
+                            )
+                        )
+
+                        // Menú desplegable
+                        DropdownMenu(
+                            expanded = showStatusMenu,
+                            onDismissRequest = { showStatusMenu = false }
+                        ) {
+                            ExemplarStatus.values().forEach { status ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = when(status) {
+                                                    ExemplarStatus.LLIURE -> Icons.Default.CheckCircle
+                                                    ExemplarStatus.PRESTAT -> Icons.Default.Person
+                                                    ExemplarStatus.RESERVAT -> Icons.Default.Schedule
+                                                },
+                                                contentDescription = null,
+                                                tint = status.color,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Text(status.displayName)
+                                        }
+                                    },
+                                    onClick = {
+                                        showStatusMenu = false
+                                        if (status != currentStatus) {
+                                            onStatusClick(status)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // Informació de préstec
+                    if (currentStatus == ExemplarStatus.PRESTAT && activeLoan != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "📚 Prestat a: ${activeLoan.usuari?.nom ?: "Desconegut"}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "📅 Des de: ${activeLoan.dataPrestec}",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Botó eliminar
+                IconButton(
+                    onClick = onDelete,
+                    enabled = currentStatus == ExemplarStatus.LLIURE
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Eliminar",
+                        tint = if (currentStatus == ExemplarStatus.LLIURE)
+                            MaterialTheme.colorScheme.error
+                        else
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ========== DIÀLEG DE SELECCIÓ D'USUARI ==========
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UserSelectionDialog(
+    users: List<User>,
+    isLoading: Boolean,
+    onUserSelected: (User) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.8f),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                // Capçalera
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Seleccionar Usuari",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, "Tancar")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Camp de cerca
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = { Text("Cercar usuari...") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = null)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Llista d'usuaris
+                when {
+                    isLoading -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                        }
+                    }
+
+                    users.isEmpty() -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        ) {
+                            Text(
+                                text = "No hi ha usuaris disponibles",
+                                modifier = Modifier.align(Alignment.Center),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    else -> {
+                        val filteredUsers = users.filter { user ->
+                            searchQuery.isEmpty() ||
+                                    user.nom.contains(searchQuery, ignoreCase = true) ||
+                                    user.nick.contains(searchQuery, ignoreCase = true) ||
+                                    user.email?.contains(searchQuery, ignoreCase = true) == true
+                        }
+
+                        LazyColumn(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(filteredUsers) { user ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onUserSelected(user) },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // Avatar
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .clip(RoundedCornerShape(20.dp))
+                                                .background(MaterialTheme.colorScheme.primary),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = user.nom.first().uppercase(),
+                                                color = Color.White,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.width(12.dp))
+
+                                        // Informació
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "${user.nom} ${user.cognom1 ?: ""}",
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                            Text(
+                                                text = "@${user.nick}",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+
+                                        // Badge admin
+                                        if (user.isAdmin) {
+                                            AssistChip(
+                                                onClick = { },
+                                                label = { Text("Admin") },
+                                                enabled = false
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ========== ENUM ESTATS ==========
+
+enum class ExemplarStatus(val value: String, val displayName: String, val color: Color) {
+    LLIURE("lliure", "Lliure", Color(0xFF4CAF50)),
+    PRESTAT("prestat", "Prestat", Color(0xFFF44336)),
+    RESERVAT("reservat", "Reservat", Color(0xFFFF9800));
+
+    companion object {
+        fun fromString(value: String): ExemplarStatus {
+            return values().find { it.value == value } ?: LLIURE
+        }
+    }
+}
+
+// ========== CARDS REUTILITZABLES ==========
+
+@Composable
+private fun LlibreCard(
+    llibre: Llibre,
+    isDeleting: Boolean,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = llibre.titol,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                llibre.autor?.let {
+                    Text(
+                        text = "Autor: ${it.nom}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                Text(
+                    text = "ISBN: ${llibre.isbn}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Row {
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Default.Edit, "Editar")
+                }
+                if (isDeleting) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                } else {
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            Icons.Default.Delete,
+                            "Eliminar",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun AutorCard(
     autor: Autor,
@@ -584,528 +969,23 @@ private fun AutorCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.Person,
-                    contentDescription = null,
-                    modifier = Modifier.size(32.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-
-                Column {
-                    Text(
-                        text = autor.nom,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = "ID: ${autor.id}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            Text(
+                text = autor.nom,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f)
+            )
 
             if (isDeleting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp)
-                )
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
             } else {
                 IconButton(onClick = onDelete) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "Eliminar",
+                        "Eliminar",
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
             }
         }
     }
-}
-
-/**
- * Tab d'Exemplars: Mostra la llista d'exemplars amb cerca.
- */
-@Composable
-private fun ExemplarsTab(
-    exemplarsState: ExemplarsUiState,
-    onSearchExemplars: (String?, String?) -> Unit,
-    onDeleteExemplar: (Long) -> Unit,
-    onChangeStatus: (Long, String) -> Unit
-) {
-    var searchTitle by remember { mutableStateOf("") }
-    var searchAuthor by remember { mutableStateOf("") }
-
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // Barra de cerca
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    "Cercar Exemplars Lliures",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = searchTitle,
-                        onValueChange = { searchTitle = it },
-                        label = { Text("Títol") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-
-                    OutlinedTextField(
-                        value = searchAuthor,
-                        onValueChange = { searchAuthor = it },
-                        label = { Text("Autor") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            onSearchExemplars(
-                                searchTitle.ifBlank { null },
-                                searchAuthor.ifBlank { null }
-                            )
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Search, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text("Cercar")
-                    }
-
-                    OutlinedButton(
-                        onClick = {
-                            searchTitle = ""
-                            searchAuthor = ""
-                            onSearchExemplars(null, null)
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Clear, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text("Netejar")
-                    }
-                }
-            }
-        }
-        if (!exemplarsState.isLoading && !exemplarsState.isSearching) {
-            val exemplarsToShow = exemplarsState.searchResults ?: exemplarsState.exemplars
-            if (exemplarsToShow.isNotEmpty()) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        // Contador total
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                "${exemplarsToShow.size}",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                            Text(
-                                "Total",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
-
-                        // Contador lliures
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                "${exemplarsToShow.count { it.reservat == "lliure" }}",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                "Lliures",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
-
-                        // Contador prestats
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                "${exemplarsToShow.count { it.reservat == "prestat" }}",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                            Text(
-                                "Prestats",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        // Llista d'exemplars
-        val exemplarsToShow = exemplarsState.searchResults ?: exemplarsState.exemplars
-
-        when {
-            exemplarsState.isLoading || exemplarsState.isSearching -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-
-            exemplarsToShow.isEmpty() -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        if (exemplarsState.searchResults != null)
-                            "No s'han trobat exemplars amb aquests criteris"
-                        else
-                            "No hi ha exemplars registrats",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            else -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(exemplarsToShow) { exemplar ->
-                        ExemplarCard(
-                            exemplar = exemplar,
-                            isDeleting = exemplarsState.isDeleting == exemplar.id,
-                            onDelete = { exemplar.id?.let { onDeleteExemplar(it) } },
-                            onChangeStatus = { newStatus ->
-                                exemplar.id?.let { onChangeStatus(it, newStatus) }
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Card per mostrar la informació d'un exemplar.
- */
-@Composable
-private fun ExemplarCard(
-    exemplar: Exemplar,
-    isDeleting: Boolean,
-    onDelete: () -> Unit,
-    onChangeStatus: (String) -> Unit
-) {
-    var showStatusDialog by remember { mutableStateOf(false) }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                exemplar.llibre?.let { llibre ->
-                    Text(
-                        text = llibre.titol,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    llibre.autor?.let {
-                        Text(
-                            text = "Autor: ${it.nom}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    AssistChip(
-                        onClick = { },
-                        label = { Text("📍 ${exemplar.lloc}") }
-                    )
-
-                    val (color, icon, text) = when (exemplar.reservat) {
-                        "lliure" -> Triple(
-                            MaterialTheme.colorScheme.primary,
-                            Icons.Default.CheckCircle,
-                            "Lliure"
-                        )
-                        "prestat" -> Triple(
-                            MaterialTheme.colorScheme.error,
-                            Icons.Default.Schedule,
-                            "Prestat"
-                        )
-                        else -> Triple(
-                            MaterialTheme.colorScheme.tertiary,
-                            Icons.Default.BookmarkBorder,
-                            "Reservat"
-                        )
-                    }
-
-                    AssistChip(
-                        onClick = { showStatusDialog = true },
-                        label = { Text(text) },
-                        leadingIcon = {
-                            Icon(
-                                icon,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = color
-                            )
-                        },
-                        colors = AssistChipDefaults.assistChipColors(
-                            leadingIconContentColor = color
-                        )
-                    )
-                }
-
-                Text(
-                    text = "ID: ${exemplar.id}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            if (isDeleting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp)
-                )
-            } else {
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "Eliminar",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-        }
-    }
-
-    // ========== Diàleg per Canviar Estat ==========
-    if (showStatusDialog) {
-        ChangeStatusDialog(
-            currentStatus = exemplar.reservat,
-            onDismiss = { showStatusDialog = false },
-            onConfirm = { newStatus ->
-                onChangeStatus(newStatus)
-                showStatusDialog = false
-            }
-        )
-    }
-}
-
-/**
- * Diàleg per canviar l'estat d'un exemplar.
- */
-@Composable
-private fun ChangeStatusDialog(
-    currentStatus: String,
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
-) {
-    var selectedStatus by remember { mutableStateOf(currentStatus) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Canviar Estat de l'Exemplar") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "Selecciona el nou estat:",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                // Opció: Lliure
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        selected = selectedStatus == "lliure",
-                        onClick = { selectedStatus = "lliure" }
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Lliure (Disponible)")
-                }
-
-                // Opció: Prestat
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        selected = selectedStatus == "prestat",
-                        onClick = { selectedStatus = "prestat" }
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Icon(
-                        Icons.Default.Schedule,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Prestat")
-                }
-
-                // Opció: Reservat
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        selected = selectedStatus == "reservat",
-                        onClick = { selectedStatus = "reservat" }
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Icon(
-                        Icons.Default.BookmarkBorder,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.tertiary
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Reservat")
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onConfirm(selectedStatus) },
-                enabled = selectedStatus != currentStatus
-            ) {
-                Text("Canviar")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel·lar")
-            }
-        }
-    )
-}
-
-/**
- * Diàleg per afegir un nou autor.
- */
-@Composable
-private fun AddAutorDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
-) {
-    var nom by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Afegir Nou Autor") },
-        text = {
-            Column {
-                Text("Introdueix el nom complet de l'autor:")
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = nom,
-                    onValueChange = { nom = it },
-                    label = { Text("Nom de l'autor") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (nom.isNotBlank()) {
-                        onConfirm(nom.trim())
-                    }
-                },
-                enabled = nom.isNotBlank()
-            ) {
-                Text("Afegir")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel·lar")
-            }
-        }
-    )
 }

@@ -39,7 +39,7 @@ import java.time.format.DateTimeFormatter
  */
 class LoanViewModel : ViewModel() {
 
-    private val api = ApiClient.instance
+    val api = ApiClient.instance
 
     // ========== ESTATS DELS PRÉSTECS ACTIUS ==========
 
@@ -62,7 +62,7 @@ class LoanViewModel : ViewModel() {
     /**
      * Estat del formulari de crear préstec.
      */
-    private val _createLoanState = MutableStateFlow(CreateLoanState())
+    val _createLoanState = MutableStateFlow(CreateLoanState())
     val createLoanState: StateFlow<CreateLoanState> = _createLoanState.asStateFlow()
 
     // ========== ESTAT DE DEVOLUCIÓ ==========
@@ -327,3 +327,151 @@ data class ReturnLoanState(
     val returnedLoanId: Long? = null,
     val error: String? = null
 )
+@RequiresApi(Build.VERSION_CODES.O)
+fun LoanViewModel.createLoanImproved(
+    usuariId: Long,
+    exemplarId: Long,
+    dataPrestec: String? = null,
+    onSuccess: () -> Unit = {},
+    onError: (String) -> Unit = {}
+) {
+    viewModelScope.launch {
+        _createLoanState.value = CreateLoanState(isSubmitting = true)
+
+        try {
+            // Preparar data del préstec (avui si no s'especifica)
+            val dataActual = dataPrestec ?: LocalDate.now()
+                .format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+            // Crear request
+            val request = CreatePrestecRequest(
+                dataPrestec = dataActual,
+                usuari = UserIdOnly(id = usuariId),
+                exemplar = ExemplarIdOnly(id = exemplarId)
+            )
+
+            // Enviar al backend
+            val prestecCreat = api.createPrestec(request)
+
+            _createLoanState.value = CreateLoanState(
+                success = true,
+                successMessage = "Préstec creat correctament",
+                createdLoan = prestecCreat
+            )
+
+            // Callback d'èxit
+            onSuccess()
+
+        } catch (e: Exception) {
+            val errorMessage = when {
+                e.message?.contains("400") == true ->
+                    "L'exemplar ja està prestat o no està disponible"
+                e.message?.contains("404") == true ->
+                    "Exemplar o usuari no trobat"
+                e.message?.contains("403") == true ->
+                    "No tens permisos per crear préstecs"
+                e.message?.contains("409") == true ->
+                    "L'exemplar ja té un préstec actiu"
+                else ->
+                    "Error creant préstec: ${e.message}"
+            }
+
+            _createLoanState.value = CreateLoanState(
+                isSubmitting = false,
+                error = errorMessage
+            )
+
+            // Callback d'error
+            onError(errorMessage)
+        }
+    }
+}
+
+/**
+ * Mètode per obtenir préstecs actius d'un exemplar específic.
+ */
+fun LoanViewModel.getActiveLoanForExemplar(exemplarId: Long): Prestec? {
+    return activeLoansState.value.loans.find {
+        it.exemplar.id == exemplarId && it.isActive
+    }
+}
+
+/**
+ * Mètode per comprovar si un usuari té préstecs actius.
+ */
+fun LoanViewModel.userHasActiveLoans(userId: Long): Boolean {
+    return activeLoansState.value.loans.any {
+        it.usuari?.id == userId && it.isActive
+    }
+}
+
+/**
+ * Mètode per obtenir el nombre de préstecs actius d'un usuari.
+ */
+fun LoanViewModel.getActiveLoansCountForUser(userId: Long): Int {
+    return activeLoansState.value.loans.count {
+        it.usuari?.id == userId && it.isActive
+    }
+}
+// ========== UTILITATS COMPARTIDES ==========
+
+/**
+ * Classe d'utilitats per gestionar estats i transicions.
+ */
+object LoanManagementUtils {
+
+    /**
+     * Valida si una transició d'estat és vàlida.
+     */
+    fun isValidStateTransition(from: String, to: String): Boolean {
+        return when (from) {
+            "lliure" -> to in listOf("prestat", "reservat")
+            "prestat" -> to in listOf("lliure") // Només es pot retornar
+            "reservat" -> to in listOf("lliure", "prestat") // Es pot alliberar o prestar
+            else -> false
+        }
+    }
+
+    /**
+     * Determina si cal seleccionar usuari per una transició.
+     */
+    fun needsUserSelection(from: String, to: String): Boolean {
+        return when {
+            from == "lliure" && to in listOf("prestat", "reservat") -> true
+            from == "reservat" && to == "prestat" -> true
+            else -> false
+        }
+    }
+
+    /**
+     * Determina si cal retornar un préstec per una transició.
+     */
+    fun needsLoanReturn(from: String, to: String): Boolean {
+        return from == "prestat" && to == "lliure"
+    }
+
+    /**
+     * Formata una data per mostrar a la UI.
+     */
+    fun formatDate(dateString: String): String {
+        return try {
+            val date = LocalDate.parse(dateString)
+            date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+        } catch (e: Exception) {
+            dateString
+        }
+    }
+
+    /**
+     * Calcula els dies de préstec.
+     */
+    fun calculateLoanDays(dataPrestec: String): Long {
+        return try {
+            val startDate = LocalDate.parse(dataPrestec)
+            val today = LocalDate.now()
+            java.time.temporal.ChronoUnit.DAYS.between(startDate, today)
+        } catch (e: Exception) {
+            0
+        }
+    }
+}

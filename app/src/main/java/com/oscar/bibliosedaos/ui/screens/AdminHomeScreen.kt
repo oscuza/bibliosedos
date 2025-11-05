@@ -60,7 +60,7 @@ fun AdminHomeScreen(
      * Estat de la llista d'usuaris.
      * Conté: isLoading, users (List<User>), error
      */
-    val userListState by authViewModel.userListState.collectAsState()
+    val userListState by authViewModel.allUsersState.collectAsState()
 
     /**
      * Estat del login per obtenir l'ID de l'admin actual.
@@ -140,9 +140,8 @@ fun AdminHomeScreen(
                 TextButton(
                     onClick = {
                         userToDelete?.let { user ->
-                            authViewModel.deleteUser(user.id) { success, message ->
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                            }
+                            authViewModel.deleteUser(user.id)
+                            Toast.makeText(context, "Usuari eliminat correctament", Toast.LENGTH_SHORT).show()
                         }
                         showDeleteDialog = false
                         userToDelete = null

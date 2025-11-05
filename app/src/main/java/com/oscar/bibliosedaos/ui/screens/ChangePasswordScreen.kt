@@ -1,5 +1,7 @@
 package com.oscar.bibliosedaos.ui.screens
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -18,11 +20,13 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.oscar.bibliosedaos.navigation.AppScreens
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
+import kotlinx.coroutines.launch
 
 /**
  * Pantalla per canviar la contrasenya de l'usuari.
  * Inclou validacions de seguretat i confirmació de contrasenya.
  */
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChangePasswordScreen(
@@ -39,15 +43,15 @@ fun ChangePasswordScreen(
     var newPasswordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
-    // Estats de control
-    var isChanging by remember { mutableStateOf(false) }
-    var changeMessage by remember { mutableStateOf<String?>(null) }
-    var changeSuccess by remember { mutableStateOf(false) }
-
-    // Obtenir dades de l'usuari actual
-    val userProfileState by authViewModel.userProfileState.collectAsState()
+    // Estats observables
+    val changePasswordState by authViewModel.changePasswordState.collectAsState()
     val loginState by authViewModel.loginUiState.collectAsState()
-    val userId = userProfileState.user?.id ?: 0L
+
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Variable per rastrejar si s'ha enviat el formulari
+    var hasSubmitted by remember { mutableStateOf(false) }
 
     // Flag per prevenir doble clic al botó enrere
     var isNavigating by remember { mutableStateOf(false) }
@@ -65,7 +69,55 @@ fun ChangePasswordScreen(
             isNewPasswordValid &&
             doPasswordsMatch &&
             isDifferentPassword &&
-            !isChanging
+            !changePasswordState.isChanging
+
+    // ========== GESTIÓ DE RESPOSTES ==========
+
+    LaunchedEffect(changePasswordState.isChanging, changePasswordState.error) {
+        if (hasSubmitted && !changePasswordState.isChanging) {
+            if (changePasswordState.error == null && changePasswordState.success) {
+                // Èxit: mostra missatge i neteja camps
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = "Contrasenya canviada correctament",
+                        duration = SnackbarDuration.Short
+                    )
+                }
+                currentPassword = ""
+                newPassword = ""
+                confirmPassword = ""
+                hasSubmitted = false
+                // Navegar al perfil després d'un petit delay
+                if (!isNavigating) {
+                    isNavigating = true
+                    val currentUserId = loginState.authResponse?.id ?: 0L
+                    navController.navigate(
+                        AppScreens.UserProfileScreen.createRoute(currentUserId)
+                    ) {
+                        popUpTo(AppScreens.ChangePasswordScreen.route) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                }
+            } else {
+                // Error: només mostra l'error (ja es gestiona en un altre LaunchedEffect)
+                hasSubmitted = false
+            }
+        }
+    }
+
+    LaunchedEffect(changePasswordState.error) {
+        changePasswordState.error?.let { error ->
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = error,
+                    duration = SnackbarDuration.Long,
+                    actionLabel = "Tancar"
+                )
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -94,7 +146,8 @@ fun ChangePasswordScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -173,7 +226,7 @@ fun ChangePasswordScreen(
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = !isChanging,
+                        enabled = !changePasswordState.isChanging,
                         singleLine = true
                     )
 
@@ -231,7 +284,7 @@ fun ChangePasswordScreen(
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = !isChanging,
+                        enabled = !changePasswordState.isChanging,
                         singleLine = true
                     )
 
@@ -275,7 +328,7 @@ fun ChangePasswordScreen(
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = !isChanging,
+                        enabled = !changePasswordState.isChanging,
                         singleLine = true
                     )
 
@@ -318,25 +371,10 @@ fun ChangePasswordScreen(
             // Botó de canviar contrasenya
             Button(
                 onClick = {
-                    isChanging = true
-                    changeMessage = null
-                    changeSuccess = false
-
+                    hasSubmitted = true
                     authViewModel.changePassword(
-                        userId = userId,
                         currentPassword = currentPassword,
-                        newPassword = newPassword,
-                        onResult = { success, message ->
-                            isChanging = false
-                            changeMessage = message
-                            changeSuccess = success
-                            if (success) {
-                                // Netejar camps si és exitós
-                                currentPassword = ""
-                                newPassword = ""
-                                confirmPassword = ""
-                            }
-                        }
+                        newPassword = newPassword
                     )
                 },
                 modifier = Modifier
@@ -344,7 +382,7 @@ fun ChangePasswordScreen(
                     .height(56.dp),
                 enabled = isFormValid
             ) {
-                if (isChanging) {
+                if (changePasswordState.isChanging) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
                         color = MaterialTheme.colorScheme.onPrimary
@@ -353,57 +391,6 @@ fun ChangePasswordScreen(
                     Icon(Icons.Default.Security, null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("CANVIAR CONTRASENYA")
-                }
-            }
-
-            // Missatge de resultat
-            changeMessage?.let { message ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (changeSuccess)
-                            MaterialTheme.colorScheme.primaryContainer
-                        else
-                            MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            text = message,
-                            color = if (changeSuccess)
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            else
-                                MaterialTheme.colorScheme.onErrorContainer
-                        )
-
-                        if (changeSuccess) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            TextButton(
-                                onClick = {
-                                    if (!isNavigating) {
-                                        isNavigating = true
-                                        // Obtenir l'ID de l'usuari actual i navegar al seu perfil
-                                        val currentUserId = loginState.authResponse?.id ?: 0L
-                                        navController.navigate(
-                                            AppScreens.UserProfileScreen.createRoute(currentUserId)
-                                        ) {
-                                            // Eliminar ChangePasswordScreen de la pila
-                                            popUpTo(AppScreens.ChangePasswordScreen.route) {
-                                                inclusive = true
-                                            }
-                                            launchSingleTop = true
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.align(Alignment.End),
-                                enabled = !isNavigating
-                            ) {
-                                Text("TORNAR AL PERFIL")
-                            }
-                        }
-                    }
                 }
             }
 

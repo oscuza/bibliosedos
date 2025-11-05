@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.oscar.bibliosedaos.navigation.AppScreens
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
+import kotlinx.coroutines.launch
 
 
 /**
@@ -76,8 +77,14 @@ fun EditProfileScreen(
     var cp by remember { mutableStateOf("") }
     var provincia by remember { mutableStateOf("") }
 
-    var isSaving by remember { mutableStateOf(false) }
-    var saveMessage by remember { mutableStateOf<String?>(null) }
+    // Estats observables
+    val updateUserState by authViewModel.updateUserState.collectAsState()
+
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Variable per rastrejar si s'ha enviat el formulari
+    var hasSubmitted by remember { mutableStateOf(false) }
 
     // ========== CÀRREGA INICIAL DE DADES ==========
 
@@ -112,8 +119,48 @@ fun EditProfileScreen(
     val isFormValid = isNickValid && isNomValid && isCognom1Valid &&
             isNifValid && isEmailValid && isTlfValid && isCpValid &&
             carrer.isNotBlank() && localitat.isNotBlank() &&
-            provincia.isNotBlank() && !isSaving
+            provincia.isNotBlank() && !updateUserState.isUpdating
 
+    // ========== GESTIÓ DE RESPOSTES ==========
+
+    LaunchedEffect(updateUserState.isUpdating, updateUserState.error) {
+        if (hasSubmitted && !updateUserState.isUpdating) {
+            if (updateUserState.error == null && updateUserState.success) {
+                // Èxit: mostra missatge i navega
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = "Perfil actualitzat correctament",
+                        duration = SnackbarDuration.Short
+                    )
+                }
+                hasSubmitted = false
+                val currentUserId = loginState.authResponse?.id ?: 0L
+                navController.navigate(
+                    AppScreens.UserProfileScreen.createRoute(currentUserId)
+                ) {
+                    popUpTo(AppScreens.EditProfileScreen.route) {
+                        inclusive = true
+                    }
+                    launchSingleTop = true
+                }
+            } else {
+                // Error: només mostra l'error (ja es gestiona en un altre LaunchedEffect)
+                hasSubmitted = false
+            }
+        }
+    }
+
+    LaunchedEffect(updateUserState.error) {
+        updateUserState.error?.let { error ->
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = error,
+                    duration = SnackbarDuration.Long,
+                    actionLabel = "Tancar"
+                )
+            }
+        }
+    }
 
     // ========== UI ==========
 
@@ -147,7 +194,8 @@ fun EditProfileScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -204,7 +252,7 @@ fun EditProfileScreen(
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = !isSaving,
+                                enabled = !updateUserState.isUpdating,
                                 singleLine = true
                             )
 
@@ -214,7 +262,7 @@ fun EditProfileScreen(
                                 label = { Text("Nom*") },
                                 isError = nom.isNotEmpty() && !isNomValid,
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = !isSaving,
+                                enabled = !updateUserState.isUpdating,
                                 singleLine = true
                             )
 
@@ -224,7 +272,7 @@ fun EditProfileScreen(
                                 label = { Text("Primer Cognom*") },
                                 isError = cognom1.isNotEmpty() && !isCognom1Valid,
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = !isSaving,
+                                enabled = !updateUserState.isUpdating,
                                 singleLine = true
                             )
 
@@ -233,7 +281,7 @@ fun EditProfileScreen(
                                 onValueChange = { cognom2 = it },
                                 label = { Text("Segon Cognom") },
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = !isSaving,
+                                enabled = !updateUserState.isUpdating,
                                 singleLine = true
                             )
                         }
@@ -262,7 +310,7 @@ fun EditProfileScreen(
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = !isSaving,
+                                enabled = !updateUserState.isUpdating,
                                 singleLine = true
                             )
                         }
@@ -292,7 +340,7 @@ fun EditProfileScreen(
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = !isSaving,
+                                enabled = !updateUserState.isUpdating,
                                 singleLine = true
                             )
 
@@ -309,7 +357,7 @@ fun EditProfileScreen(
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = !isSaving,
+                                enabled = !updateUserState.isUpdating,
                                 singleLine = true
                             )
                         }
@@ -332,7 +380,7 @@ fun EditProfileScreen(
                                 label = { Text("Carrer*") },
                                 leadingIcon = { Icon(Icons.Default.Home, null) },
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = !isSaving,
+                                enabled = !updateUserState.isUpdating,
                                 singleLine = true
                             )
 
@@ -347,7 +395,7 @@ fun EditProfileScreen(
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     isError = cp.isNotEmpty() && !isCpValid,
                                     modifier = Modifier.weight(0.4f),
-                                    enabled = !isSaving,
+                                    enabled = !updateUserState.isUpdating,
                                     singleLine = true
                                 )
 
@@ -356,7 +404,7 @@ fun EditProfileScreen(
                                     onValueChange = { localitat = it },
                                     label = { Text("Localitat*") },
                                     modifier = Modifier.weight(0.6f),
-                                    enabled = !isSaving,
+                                    enabled = !updateUserState.isUpdating,
                                     singleLine = true
                                 )
                             }
@@ -367,7 +415,7 @@ fun EditProfileScreen(
                                 label = { Text("Província*") },
                                 leadingIcon = { Icon(Icons.Default.LocationOn, null) },
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = !isSaving,
+                                enabled = !updateUserState.isUpdating,
                                 singleLine = true
                             )
                         }
@@ -376,42 +424,14 @@ fun EditProfileScreen(
                     // BOTÓ GUARDAR
                     Button(
                         onClick = {
-                            isSaving = true
-                            saveMessage = null
-
-                            authViewModel.updateCompleteProfile(
-                                userId = user.id,
+                            hasSubmitted = true
+                            authViewModel.updateCurrentUserProfile(
                                 nick = nick,
                                 nom = nom,
                                 cognom1 = cognom1,
                                 cognom2 = cognom2.trim().ifEmpty { null },
-                                nif = nif,
                                 email = email,
-                                tlf = tlf,
-                                carrer = carrer,
-                                localitat = localitat,
-                                cp = cp,
-                                provincia = provincia,
-                                onResult = { success, message ->
-                                    isSaving = false
-                                    saveMessage = message
-                                    if (success) {
-
-                                        val currentUserId = authViewModel.loginUiState.value.authResponse?.id ?: 0L
-
-                                        navController.navigate(
-                                            AppScreens.UserProfileScreen.route
-                                                .replace("{userId}", currentUserId.toString())
-                                        ) {
-                                            // Neteja la pila fins a AdminHomeScreen (que és d'on ve l'accés)
-                                            popUpTo(AppScreens.AdminHomeScreen.route) {
-                                                inclusive = true
-                                            }
-                                            launchSingleTop = true
-                                        }
-
-                                    }
-                                }
+                                tlf = tlf
                             )
                         },
                         modifier = Modifier
@@ -419,7 +439,7 @@ fun EditProfileScreen(
                             .height(56.dp),
                         enabled = isFormValid
                     ) {
-                        if (isSaving) {
+                        if (updateUserState.isUpdating) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
                                 color = MaterialTheme.colorScheme.onPrimary
@@ -428,24 +448,6 @@ fun EditProfileScreen(
                             Icon(Icons.Default.Save, null)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("GUARDAR CANVIS")
-                        }
-                    }
-
-                    // Missatge de resultat
-                    saveMessage?.let { message ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (message.contains("Error"))
-                                    MaterialTheme.colorScheme.errorContainer
-                                else
-                                    MaterialTheme.colorScheme.primaryContainer
-                            )
-                        ) {
-                            Text(
-                                text = message,
-                                modifier = Modifier.padding(12.dp)
-                            )
                         }
                     }
                 }

@@ -16,6 +16,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.oscar.bibliosedaos.data.models.Llibre
 import com.oscar.bibliosedaos.ui.viewmodels.BookViewModel
 import kotlinx.coroutines.launch
 
@@ -76,10 +77,13 @@ fun AddBookScreen(
 
     // Estats observables
     val autorsState by bookViewModel.autorsState.collectAsState()
-    val formState by bookViewModel.llibreFormState.collectAsState()
+    val formState by bookViewModel.llibresState.collectAsState()
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Variable per rastrejar si s'ha enviat el formulari
+    var hasSubmitted by remember { mutableStateOf(false) }
 
     // ========== CÀRREGA D'AUTORS ==========
 
@@ -89,16 +93,28 @@ fun AddBookScreen(
 
     // ========== GESTIÓ DE RESPOSTES ==========
 
-    LaunchedEffect(formState.success) {
-        if (formState.success) {
-            scope.launch {
-                snackbarHostState.showSnackbar(
-                    message = formState.successMessage ?: "Llibre creat correctament",
-                    duration = SnackbarDuration.Short
-                )
+    LaunchedEffect(formState.isCreating, formState.error) {
+        if (hasSubmitted && !formState.isCreating) {
+            if (formState.error == null) {
+                // Èxit: mostra missatge i navega enrere
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = "Llibre creat correctament",
+                        duration = SnackbarDuration.Short
+                    )
+                }
+                // Resetear el formulari
+                isbn = ""
+                titol = ""
+                pagines = ""
+                editorial = ""
+                selectedAutorId = null
+                hasSubmitted = false
+                navController.navigateUp()
+            } else {
+                // Error: només mostra l'error (ja es gestiona en un altre LaunchedEffect)
+                hasSubmitted = false
             }
-            bookViewModel.resetForms()
-            navController.navigateUp()
         }
     }
 
@@ -163,13 +179,17 @@ fun AddBookScreen(
         val isEditorialValid = validateEditorial()
 
         if (isIsbnValid && isTitolValid && isPaginesValid && isEditorialValid) {
-            bookViewModel.addLlibre(
+            hasSubmitted = true
+            val nouLlibre = Llibre(
                 isbn = isbn.trim(),
                 titol = titol.trim(),
                 pagines = pagines.toInt(),
                 editorial = editorial.trim(),
-                autorId = selectedAutorId
+                autor = selectedAutorId?.let { autorId ->
+                    autorsState.autors.find { it.id == autorId }
+                }
             )
+            bookViewModel.createLlibre(nouLlibre)
         }
     }
 
@@ -462,9 +482,9 @@ fun AddBookScreen(
                 Button(
                     onClick = { validateAndSubmit() },
                     modifier = Modifier.weight(1f),
-                    enabled = !formState.isSubmitting
+                    enabled = !formState.isCreating
                 ) {
-                    if (formState.isSubmitting) {
+                    if (formState.isCreating) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
                             color = MaterialTheme.colorScheme.onPrimary
@@ -506,14 +526,14 @@ fun AddBookScreen(
                 TextButton(
                     onClick = {
                         if (nouAutorNom.isNotBlank()) {
-                            bookViewModel.addAutor(nouAutorNom.trim())
+                            bookViewModel.createAutor(nouAutorNom.trim())
                             showAddAutorDialog = false
                             nouAutorNom = ""
                         }
                     },
-                    enabled = nouAutorNom.isNotBlank() && !autorsState.isAdding
+                    enabled = nouAutorNom.isNotBlank() && !autorsState.isCreating
                 ) {
-                    if (autorsState.isAdding) {
+                    if (autorsState.isCreating) {
                         CircularProgressIndicator(modifier = Modifier.size(16.dp))
                     } else {
                         Text("Afegir")

@@ -94,11 +94,13 @@ fun EditBookScreen(
 
     // Estats observables
     val autorsState by bookViewModel.autorsState.collectAsState()
-    val formState by bookViewModel.llibreFormState.collectAsState()
     val llibresState by bookViewModel.llibresState.collectAsState()
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Variable per rastrejar si s'ha enviat el formulari
+    var hasSubmitted by remember { mutableStateOf(false) }
 
     // ========== CÀRREGA DE DADES INICIALS ==========
 
@@ -133,21 +135,27 @@ fun EditBookScreen(
 
     // ========== GESTIÓ DE RESPOSTES ==========
 
-    LaunchedEffect(formState.success) {
-        if (formState.success) {
-            scope.launch {
-                snackbarHostState.showSnackbar(
-                    message = formState.successMessage ?: "Llibre actualitzat correctament",
-                    duration = SnackbarDuration.Short
-                )
+    LaunchedEffect(llibresState.isUpdating, llibresState.error) {
+        if (hasSubmitted && llibresState.isUpdating == null) {
+            if (llibresState.error == null) {
+                // Èxit: mostra missatge i navega enrere
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = "Llibre actualitzat correctament",
+                        duration = SnackbarDuration.Short
+                    )
+                }
+                hasSubmitted = false
+                navController.navigateUp()
+            } else {
+                // Error: només mostra l'error (ja es gestiona en un altre LaunchedEffect)
+                hasSubmitted = false
             }
-            bookViewModel.resetForms()
-            navController.navigateUp()
         }
     }
 
-    LaunchedEffect(formState.error) {
-        formState.error?.let { error ->
+    LaunchedEffect(llibresState.error) {
+        llibresState.error?.let { error ->
             scope.launch {
                 snackbarHostState.showSnackbar(
                     message = error,
@@ -207,6 +215,7 @@ fun EditBookScreen(
         val isEditorialValid = validateEditorial()
 
         if (isIsbnValid && isTitolValid && isPaginesValid && isEditorialValid) {
+            hasSubmitted = true
             val autor = selectedAutorId?.let {
                 autorsState.autors.find { it.id == selectedAutorId }
             }
@@ -598,9 +607,9 @@ fun EditBookScreen(
                         Button(
                             onClick = { validateAndSubmit() },
                             modifier = Modifier.weight(1f),
-                            enabled = !formState.isSubmitting
+                            enabled = llibresState.isUpdating != bookId
                         ) {
-                            if (formState.isSubmitting) {
+                            if (llibresState.isUpdating == bookId) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(16.dp),
                                     color = MaterialTheme.colorScheme.onPrimary
@@ -644,14 +653,14 @@ fun EditBookScreen(
                 TextButton(
                     onClick = {
                         if (nouAutorNom.isNotBlank()) {
-                            bookViewModel.addAutor(nouAutorNom.trim())
+                            bookViewModel.createAutor(nouAutorNom.trim())
                             showAddAutorDialog = false
                             nouAutorNom = ""
                         }
                     },
-                    enabled = nouAutorNom.isNotBlank() && !autorsState.isAdding
+                    enabled = nouAutorNom.isNotBlank() && !autorsState.isCreating
                 ) {
-                    if (autorsState.isAdding) {
+                    if (autorsState.isCreating) {
                         CircularProgressIndicator(modifier = Modifier.size(16.dp))
                     } else {
                         Text("Afegir")

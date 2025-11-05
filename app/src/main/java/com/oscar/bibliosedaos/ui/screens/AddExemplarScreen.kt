@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.oscar.bibliosedaos.data.models.Exemplar
 import com.oscar.bibliosedaos.ui.viewmodels.BookViewModel
 import kotlinx.coroutines.launch
 
@@ -64,10 +65,13 @@ fun AddExemplarScreen(
 
     // Estats observables
     val llibresState by bookViewModel.llibresState.collectAsState()
-    val formState by bookViewModel.exemplarFormState.collectAsState()
+    val exemplarsState by bookViewModel.exemplarsState.collectAsState()
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Variable per rastrejar si s'ha enviat el formulari
+    var hasSubmitted by remember { mutableStateOf(false) }
 
     // Llibre seleccionat
     val selectedLlibre = llibresState.llibres.find { it.id == selectedLlibreId }
@@ -80,21 +84,30 @@ fun AddExemplarScreen(
 
     // ========== GESTIÓ DE RESPOSTES ==========
 
-    LaunchedEffect(formState.success) {
-        if (formState.success) {
-            scope.launch {
-                snackbarHostState.showSnackbar(
-                    message = formState.successMessage ?: "Exemplar creat correctament",
-                    duration = SnackbarDuration.Short
-                )
+    LaunchedEffect(exemplarsState.isCreating, exemplarsState.error) {
+        if (hasSubmitted && !exemplarsState.isCreating) {
+            if (exemplarsState.error == null) {
+                // Èxit: mostra missatge i navega enrere
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = "Exemplar creat correctament",
+                        duration = SnackbarDuration.Short
+                    )
+                }
+                // Resetear el formulari
+                selectedLlibreId = null
+                lloc = ""
+                hasSubmitted = false
+                navController.navigateUp()
+            } else {
+                // Error: només mostra l'error (ja es gestiona en un altre LaunchedEffect)
+                hasSubmitted = false
             }
-            bookViewModel.resetForms()
-            navController.navigateUp()
         }
     }
 
-    LaunchedEffect(formState.error) {
-        formState.error?.let { error ->
+    LaunchedEffect(exemplarsState.error) {
+        exemplarsState.error?.let { error ->
             scope.launch {
                 snackbarHostState.showSnackbar(
                     message = error,
@@ -130,11 +143,14 @@ fun AddExemplarScreen(
         val isLlibreValid = validateLlibre()
         val isLlocValid = validateLloc()
 
-        if (isLlibreValid && isLlocValid && selectedLlibreId != null) {
-            bookViewModel.addExemplar(
+        if (isLlibreValid && isLlocValid && selectedLlibreId != null && selectedLlibre != null) {
+            hasSubmitted = true
+            val nouExemplar = Exemplar(
                 lloc = lloc.trim(),
-                llibreId = selectedLlibreId!!
+                reservat = "lliure",
+                llibre = selectedLlibre
             )
+            bookViewModel.createExemplar(nouExemplar)
         }
     }
 
@@ -475,9 +491,9 @@ fun AddExemplarScreen(
                 Button(
                     onClick = { validateAndSubmit() },
                     modifier = Modifier.weight(1f),
-                    enabled = !formState.isSubmitting
+                    enabled = !exemplarsState.isCreating
                 ) {
-                    if (formState.isSubmitting) {
+                    if (exemplarsState.isCreating) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
                             color = MaterialTheme.colorScheme.onPrimary

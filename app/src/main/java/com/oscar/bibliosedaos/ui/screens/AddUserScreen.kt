@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.oscar.bibliosedaos.navigation.AppScreens
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
+import kotlinx.coroutines.launch
 
 /**
  * Pantalla per crear nous usuaris amb TOTS els camps obligatoris.
@@ -55,12 +56,15 @@ fun AddUserScreen(
     // Rol
     var rol by remember { mutableStateOf(1) } // Per defecte usuari normal
 
-    // Estats de control
-    var isCreating by remember { mutableStateOf(false) }
-    var createMessage by remember { mutableStateOf<String?>(null) }
-
-    // Obtenir estat del login per l'ID de l'admin
+    // Estats observables
+    val createUserState by authViewModel.createUserState.collectAsState()
     val loginState by authViewModel.loginUiState.collectAsState()
+
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Variable per rastrejar si s'ha enviat el formulari
+    var hasSubmitted by remember { mutableStateOf(false) }
 
     // Flag per prevenir doble clic al botó enrere
     var isNavigating by remember { mutableStateOf(false) }
@@ -82,7 +86,51 @@ fun AddUserScreen(
     val isFormValid = isNickValid && isPasswordValid && isNombreValid &&
             isApellido1Valid && isNifValid && isEmailValid &&
             isTlfValid && isCpValid && isCarrerValid &&
-            isLocalitatValid && isProvinciaValid && !isCreating
+            isLocalitatValid && isProvinciaValid && !createUserState.isCreating
+
+    // ========== GESTIÓ DE RESPOSTES ==========
+
+    LaunchedEffect(createUserState.isCreating, createUserState.error) {
+        if (hasSubmitted && !createUserState.isCreating) {
+            if (createUserState.error == null && createUserState.success) {
+                // Èxit: mostra missatge i navega
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = "Usuari creat correctament",
+                        duration = SnackbarDuration.Short
+                    )
+                }
+                hasSubmitted = false
+                if (!isNavigating) {
+                    isNavigating = true
+                    val adminId = loginState.authResponse?.id ?: 0L
+                    navController.navigate(
+                        AppScreens.UserProfileScreen.createRoute(adminId)
+                    ) {
+                        popUpTo(AppScreens.AddUserScreen.route) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                }
+            } else {
+                // Error: només mostra l'error (ja es gestiona en un altre LaunchedEffect)
+                hasSubmitted = false
+            }
+        }
+    }
+
+    LaunchedEffect(createUserState.error) {
+        createUserState.error?.let { error ->
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = error,
+                    duration = SnackbarDuration.Long,
+                    actionLabel = "Tancar"
+                )
+            }
+        }
+    }
 
     // ========== UI ==========
 
@@ -112,7 +160,8 @@ fun AddUserScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -383,13 +432,11 @@ fun AddUserScreen(
             // ========== BOTÓ CREAR ==========
             Button(
                 onClick = {
-                    isCreating = true
-                    createMessage = null
-
+                    hasSubmitted = true
                     authViewModel.createUser(
                         nick = nick,
                         password = password,
-                        nombre = nombre,
+                        nom = nombre,
                         cognom1 = cognom1,
                         cognom2 = cognom2.ifEmpty { null },
                         rol = rol,
@@ -399,24 +446,7 @@ fun AddUserScreen(
                         carrer = carrer,
                         localitat = localitat,
                         cp = cp,
-                        provincia = provincia,
-                        onResult = { success, message ->
-                            isCreating = false
-                            createMessage = message
-                            if (success && !isNavigating) {
-                                isNavigating = true
-                                // Navegar al perfil de l'admin
-                                val adminId = loginState.authResponse?.id ?: 0L
-                                navController.navigate(
-                                    AppScreens.UserProfileScreen.createRoute(adminId)
-                                ) {
-                                    popUpTo(AppScreens.AddUserScreen.route) {
-                                        inclusive = true
-                                    }
-                                    launchSingleTop = true
-                                }
-                            }
-                        }
+                        provincia = provincia
                     )
                 },
                 modifier = Modifier
@@ -424,7 +454,7 @@ fun AddUserScreen(
                     .height(56.dp),
                 enabled = isFormValid
             ) {
-                if (isCreating) {
+                if (createUserState.isCreating) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
                         color = MaterialTheme.colorScheme.onPrimary
@@ -433,28 +463,6 @@ fun AddUserScreen(
                     Icon(Icons.Default.PersonAdd, null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("CREAR USUARI")
-                }
-            }
-
-            // Missatge de resultat
-            createMessage?.let { message ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (message.contains("Error"))
-                            MaterialTheme.colorScheme.errorContainer
-                        else
-                            MaterialTheme.colorScheme.primaryContainer
-                    )
-                ) {
-                    Text(
-                        text = message,
-                        modifier = Modifier.padding(12.dp),
-                        color = if (message.contains("Error"))
-                            MaterialTheme.colorScheme.onErrorContainer
-                        else
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                    )
                 }
             }
 

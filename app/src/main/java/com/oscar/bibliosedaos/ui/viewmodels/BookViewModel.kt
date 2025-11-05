@@ -10,79 +10,44 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * ViewModel per gestionar el manteniment de llibres, autors i exemplars.
+ * ViewModel per gestionar llibres, autors i exemplars.
  *
- * Aquest ViewModel gestiona totes les operacions CRUD relacionades amb
- * el catàleg de llibres de la biblioteca, incloent:
- * - Gestió de llibres (afegir, editar, eliminar, llistar)
- * - Gestió d'autors (afegir, eliminar, llistar)
- * - Gestió d'exemplars (afegir, editar, eliminar, llistar)
- *
- * **Funcionalitats Principals:**
- * - Càrrega de dades des del backend
- * - Validació de formularis
- * - Gestió d'estats de càrrega i errors
- * - Actualització reactiva de la UI
- *
- * @property api Instància de l'API per comunicació amb el backend
+ * Gestiona:
+ * - CRUD de llibres
+ * - CRUD d'autors
+ * - CRUD d'exemplars
+ * - Actualització d'estats d'exemplars per préstecs
  *
  * @author Oscar
- * @since 1.0
- * @see Llibre
- * @see Autor
- * @see Exemplar
+ * @version 2.0 - Afegit updateExemplar per gestió de préstecs
  */
 class BookViewModel : ViewModel() {
 
-    private val api = ApiClient.instance
+    val api = ApiClient.instance
 
-    // ========== ESTATS DELS LLIBRES ==========
+    // ========== ESTATS DE LLIBRES ==========
 
-    /**
-     * Estat de la llista de llibres.
-     */
     private val _llibresState = MutableStateFlow(LlibresUiState())
     val llibresState: StateFlow<LlibresUiState> = _llibresState.asStateFlow()
 
-    /**
-     * Estat del formulari d'afegir/editar llibre.
-     */
-    private val _llibreFormState = MutableStateFlow(LlibreFormState())
-    val llibreFormState: StateFlow<LlibreFormState> = _llibreFormState.asStateFlow()
+    // ========== ESTATS D'AUTORS ==========
 
-    // ========== ESTATS DELS AUTORS ==========
-
-    /**
-     * Estat de la llista d'autors.
-     */
     private val _autorsState = MutableStateFlow(AutorsUiState())
     val autorsState: StateFlow<AutorsUiState> = _autorsState.asStateFlow()
 
-    // ========== ESTATS DELS EXEMPLARS ==========
+    // ========== ESTATS D'EXEMPLARS ==========
 
-    /**
-     * Estat de la llista d'exemplars.
-     */
-    private val _exemplarsState = MutableStateFlow(ExemplarsUiState())
+    val _exemplarsState = MutableStateFlow(ExemplarsUiState())
     val exemplarsState: StateFlow<ExemplarsUiState> = _exemplarsState.asStateFlow()
-
-    /**
-     * Estat del formulari d'afegir/editar exemplar.
-     */
-    private val _exemplarFormState = MutableStateFlow(ExemplarFormState())
-    val exemplarFormState: StateFlow<ExemplarFormState> = _exemplarFormState.asStateFlow()
 
     // ========== OPERACIONS AMB LLIBRES ==========
 
     /**
-     * Carrega la llista de llibres des del backend.
-     *
-     * Actualitza [llibresState] amb els llibres obtinguts o
-     * amb un missatge d'error si la petició falla.
+     * Carrega tots els llibres del sistema.
      */
     fun loadLlibres() {
         viewModelScope.launch {
-            _llibresState.value = _llibresState.value.copy(isLoading = true)
+            _llibresState.value = LlibresUiState(isLoading = true)
             try {
                 val llibres = api.getAllLlibres()
                 _llibresState.value = LlibresUiState(
@@ -99,50 +64,22 @@ class BookViewModel : ViewModel() {
     }
 
     /**
-     * Afegeix un nou llibre al sistema.
-     *
-     * @param isbn ISBN únic del llibre
-     * @param titol Títol del llibre
-     * @param pagines Nombre de pàgines
-     * @param editorial Editorial del llibre
-     * @param autorId ID de l'autor (opcional)
+     * Crea un nou llibre.
      */
-    fun addLlibre(
-        isbn: String,
-        titol: String,
-        pagines: Int,
-        editorial: String,
-        autorId: Long?
-    ) {
+    fun createLlibre(llibre: Llibre) {
         viewModelScope.launch {
-            _llibreFormState.value = _llibreFormState.value.copy(isSubmitting = true)
-
+            _llibresState.value = _llibresState.value.copy(isCreating = true)
             try {
-                val autor = autorId?.let {
-                    _autorsState.value.autors.find { it.id == autorId }
-                }
-
-                val nouLlibre = Llibre(
-                    isbn = isbn,
-                    titol = titol,
-                    pagines = pagines,
-                    editorial = editorial,
-                    autor = autor
+                val newLlibre = api.addLlibre(llibre)
+                val updatedList = _llibresState.value.llibres + newLlibre
+                _llibresState.value = _llibresState.value.copy(
+                    llibres = updatedList,
+                    isCreating = false
                 )
-
-                val llibreCreat = api.addLlibre(nouLlibre)
-                _llibreFormState.value = LlibreFormState(
-                    success = true,
-                    successMessage = "Llibre creat correctament"
-                )
-
-                // Recarregar la llista
-                loadLlibres()
-
             } catch (e: Exception) {
-                _llibreFormState.value = _llibreFormState.value.copy(
-                    isSubmitting = false,
-                    error = "Error creant llibre: ${e.message}"
+                _llibresState.value = _llibresState.value.copy(
+                    error = "Error creant llibre: ${e.message}",
+                    isCreating = false
                 )
             }
         }
@@ -150,51 +87,45 @@ class BookViewModel : ViewModel() {
 
     /**
      * Actualitza un llibre existent.
-     *
-     * @param id ID del llibre a actualitzar
-     * @param llibre Objecte Llibre amb les noves dades
      */
     fun updateLlibre(id: Long, llibre: Llibre) {
         viewModelScope.launch {
-            _llibreFormState.value = _llibreFormState.value.copy(isSubmitting = true)
-
+            _llibresState.value = _llibresState.value.copy(isUpdating = id)
             try {
-                val llibreActualitzat = api.updateLlibre(id, llibre)
-                _llibreFormState.value = LlibreFormState(
-                    success = true,
-                    successMessage = "Llibre actualitzat correctament"
+                val updatedLlibre = api.updateLlibre(id, llibre)
+                val updatedList = _llibresState.value.llibres.map {
+                    if (it.id == id) updatedLlibre else it
+                }
+                _llibresState.value = _llibresState.value.copy(
+                    llibres = updatedList,
+                    isUpdating = null
                 )
-
-                // Recarregar la llista
-                loadLlibres()
-
             } catch (e: Exception) {
-                _llibreFormState.value = _llibreFormState.value.copy(
-                    isSubmitting = false,
-                    error = "Error actualitzant llibre: ${e.message}"
+                _llibresState.value = _llibresState.value.copy(
+                    error = "Error actualitzant llibre: ${e.message}",
+                    isUpdating = null
                 )
             }
         }
     }
 
     /**
-     * Elimina un llibre del sistema.
-     *
-     * @param id ID del llibre a eliminar
+     * Elimina un llibre.
      */
     fun deleteLlibre(id: Long) {
         viewModelScope.launch {
             _llibresState.value = _llibresState.value.copy(isDeleting = id)
-
             try {
                 api.deleteLlibre(id)
-                // Recarregar la llista
-                loadLlibres()
-
+                val updatedList = _llibresState.value.llibres.filter { it.id != id }
+                _llibresState.value = _llibresState.value.copy(
+                    llibres = updatedList,
+                    isDeleting = null
+                )
             } catch (e: Exception) {
                 _llibresState.value = _llibresState.value.copy(
-                    isDeleting = null,
-                    error = "Error eliminant llibre: ${e.message}"
+                    error = "Error eliminant llibre: ${e.message}",
+                    isDeleting = null
                 )
             }
         }
@@ -203,11 +134,11 @@ class BookViewModel : ViewModel() {
     // ========== OPERACIONS AMB AUTORS ==========
 
     /**
-     * Carrega la llista d'autors des del backend.
+     * Carrega tots els autors del sistema.
      */
     fun loadAutors() {
         viewModelScope.launch {
-            _autorsState.value = _autorsState.value.copy(isLoading = true)
+            _autorsState.value = AutorsUiState(isLoading = true)
             try {
                 val autors = api.getAllAutors()
                 _autorsState.value = AutorsUiState(
@@ -224,56 +155,45 @@ class BookViewModel : ViewModel() {
     }
 
     /**
-     * Afegeix un nou autor al sistema.
-     *
-     * @param nom Nom complet de l'autor
+     * Crea un nou autor.
      */
-    fun addAutor(nom: String) {
+    fun createAutor(nom: String) {
         viewModelScope.launch {
-            _autorsState.value = _autorsState.value.copy(isAdding = true)
-
+            _autorsState.value = _autorsState.value.copy(isCreating = true)
             try {
-                val nouAutor = Autor(nom = nom)
-                val autorCreat = api.addAutor(nouAutor)
-
-                // Actualitzar la llista localment
-                val novaLlista = _autorsState.value.autors + autorCreat
+                val autor = Autor(nom = nom)
+                val newAutor = api.addAutor(autor)
+                val updatedList = _autorsState.value.autors + newAutor
                 _autorsState.value = _autorsState.value.copy(
-                    autors = novaLlista,
-                    isAdding = false
+                    autors = updatedList,
+                    isCreating = false
                 )
-
             } catch (e: Exception) {
                 _autorsState.value = _autorsState.value.copy(
-                    isAdding = false,
-                    error = "Error creant autor: ${e.message}"
+                    error = "Error creant autor: ${e.message}",
+                    isCreating = false
                 )
             }
         }
     }
 
     /**
-     * Elimina un autor del sistema.
-     *
-     * @param id ID de l'autor a eliminar
+     * Elimina un autor.
      */
     fun deleteAutor(id: Long) {
         viewModelScope.launch {
             _autorsState.value = _autorsState.value.copy(isDeleting = id)
-
             try {
                 api.deleteAutor(id)
-                // Actualitzar la llista localment
-                val novaLlista = _autorsState.value.autors.filter { it.id != id }
+                val updatedList = _autorsState.value.autors.filter { it.id != id }
                 _autorsState.value = _autorsState.value.copy(
-                    autors = novaLlista,
+                    autors = updatedList,
                     isDeleting = null
                 )
-
             } catch (e: Exception) {
                 _autorsState.value = _autorsState.value.copy(
-                    isDeleting = null,
-                    error = "Error eliminant autor: ${e.message}"
+                    error = "Error eliminant autor: ${e.message}",
+                    isDeleting = null
                 )
             }
         }
@@ -282,11 +202,11 @@ class BookViewModel : ViewModel() {
     // ========== OPERACIONS AMB EXEMPLARS ==========
 
     /**
-     * Carrega la llista d'exemplars des del backend.
+     * Carrega tots els exemplars del sistema.
      */
     fun loadExemplars() {
         viewModelScope.launch {
-            _exemplarsState.value = _exemplarsState.value.copy(isLoading = true)
+            _exemplarsState.value = ExemplarsUiState(isLoading = true)
             try {
                 val exemplars = api.getAllExemplars()
                 _exemplarsState.value = ExemplarsUiState(
@@ -304,215 +224,259 @@ class BookViewModel : ViewModel() {
 
     /**
      * Cerca exemplars lliures per títol o autor.
-     *
-     * @param titol Títol del llibre (opcional)
-     * @param autor Nom de l'autor (opcional)
      */
-    fun searchExemplarsLliures(titol: String? = null, autor: String? = null) {
+    fun searchExemplarsLliures(titol: String?, autor: String?) {
         viewModelScope.launch {
             _exemplarsState.value = _exemplarsState.value.copy(isSearching = true)
             try {
-                val exemplars = api.getExemplarsLliures(titol, autor)
+                val results = api.getExemplarsLliures(titol, autor)
                 _exemplarsState.value = _exemplarsState.value.copy(
-                    searchResults = exemplars,
+                    searchResults = results,
                     isSearching = false
                 )
             } catch (e: Exception) {
                 _exemplarsState.value = _exemplarsState.value.copy(
-                    isSearching = false,
-                    error = "Error cercant exemplars: ${e.message}"
+                    error = "Error cercant exemplars: ${e.message}",
+                    isSearching = false
                 )
             }
         }
     }
 
     /**
-     * Afegeix un nou exemplar d'un llibre.
-     *
-     * @param lloc Ubicació física de l'exemplar
-     * @param llibreId ID del llibre associat
+     * Crea un nou exemplar.
      */
-    fun addExemplar(lloc: String, llibreId: Long) {
+    fun createExemplar(exemplar: Exemplar) {
         viewModelScope.launch {
-            _exemplarFormState.value = _exemplarFormState.value.copy(isSubmitting = true)
-
+            _exemplarsState.value = _exemplarsState.value.copy(isCreating = true)
             try {
-                val llibre = _llibresState.value.llibres.find { it.id == llibreId }
+                val newExemplar = api.addExemplar(exemplar)
+                val updatedList = _exemplarsState.value.exemplars + newExemplar
+                _exemplarsState.value = _exemplarsState.value.copy(
+                    exemplars = updatedList,
+                    isCreating = false
+                )
+            } catch (e: Exception) {
+                _exemplarsState.value = _exemplarsState.value.copy(
+                    error = "Error creant exemplar: ${e.message}",
+                    isCreating = false
+                )
+            }
+        }
+    }
 
-                if (llibre == null) {
-                    _exemplarFormState.value = _exemplarFormState.value.copy(
-                        isSubmitting = false,
-                        error = "Llibre no trobat"
-                    )
-                    return@launch
+    /**
+     * NOU: Actualitza un exemplar (principalment per canviar l'estat).
+     * Aquest mètode és clau per la gestió de préstecs.
+     *
+     * @param id Identificador de l'exemplar
+     * @param exemplar Exemplar amb les dades actualitzades
+     */
+    fun updateExemplar(id: Long, exemplar: Exemplar) {
+        viewModelScope.launch {
+            _exemplarsState.value = _exemplarsState.value.copy(isUpdating = id)
+            try {
+                // Cridar l'API per actualitzar l'exemplar
+                val updatedExemplar = api.updateExemplar(id, exemplar)
+
+                // Actualitzar la llista local d'exemplars
+                val updatedList = _exemplarsState.value.exemplars.map {
+                    if (it.id == id) updatedExemplar else it
                 }
 
-                val nouExemplar = Exemplar(
-                    lloc = lloc,
-                    llibre = llibre
+                _exemplarsState.value = ExemplarsUiState(
+                    exemplars = updatedList,
+                    isLoading = false,
+                    isUpdating = null
                 )
 
-                val exemplarCreat = api.addExemplar(nouExemplar)
-                _exemplarFormState.value = ExemplarFormState(
-                    success = true,
-                    successMessage = "Exemplar creat correctament"
-                )
-
-                // Recarregar la llista
-                loadExemplars()
+                // Opcionalment, recarregar tots els exemplars per assegurar sincronització
+                // Si vols més seguretat, descomenta la següent línia:
+                // loadExemplars()
 
             } catch (e: Exception) {
-                _exemplarFormState.value = _exemplarFormState.value.copy(
-                    isSubmitting = false,
-                    error = "Error creant exemplar: ${e.message}"
+                val errorMessage = when {
+                    e.message?.contains("400") == true ->
+                        "Dades invàlides per actualitzar l'exemplar"
+
+                    e.message?.contains("404") == true ->
+                        "Exemplar no trobat"
+
+                    e.message?.contains("403") == true ->
+                        "No tens permisos per actualitzar exemplars"
+
+                    else ->
+                        "Error actualitzant exemplar: ${e.message}"
+                }
+
+                _exemplarsState.value = _exemplarsState.value.copy(
+                    error = errorMessage,
+                    isUpdating = null
                 )
             }
         }
     }
 
     /**
-     * Elimina un exemplar del sistema.
-     *
-     * @param id ID de l'exemplar a eliminar
+     * LEGACY: Actualitza l'estat d'un exemplar (mètode antic, mantingut per compatibilitat).
+     * Es recomana utilitzar updateExemplar() directament.
+     */
+    fun updateExemplarStatus(id: Long, newStatus: String) {
+        viewModelScope.launch {
+            // Trobar l'exemplar actual
+            val currentExemplar = _exemplarsState.value.exemplars.find { it.id == id }
+            if (currentExemplar != null) {
+                // Actualitzar només l'estat
+                val updatedExemplar = currentExemplar.copy(reservat = newStatus)
+                updateExemplar(id, updatedExemplar)
+            } else {
+                _exemplarsState.value = _exemplarsState.value.copy(
+                    error = "Exemplar no trobat localment"
+                )
+            }
+        }
+    }
+
+    /**
+     * Elimina un exemplar.
      */
     fun deleteExemplar(id: Long) {
         viewModelScope.launch {
             _exemplarsState.value = _exemplarsState.value.copy(isDeleting = id)
-
             try {
                 api.deleteExemplar(id)
-                // Recarregar la llista
-                loadExemplars()
-
-            } catch (e: Exception) {
+                val updatedList = _exemplarsState.value.exemplars.filter { it.id != id }
                 _exemplarsState.value = _exemplarsState.value.copy(
-                    isDeleting = null,
-                    error = "Error eliminant exemplar: ${e.message}"
+                    exemplars = updatedList,
+                    isDeleting = null
                 )
-            }
-        }
-    }
+            } catch (e: Exception) {
+                val errorMessage = when {
+                    e.message?.contains("400") == true ->
+                        "No es pot eliminar un exemplar prestat"
 
-    /**
-     * Actualitza l'estat (disponibilitat) d'un exemplar.
-     *
-     * **Estats possibles:**
-     * - "lliure": Disponible per prestar
-     * - "prestat": Actualment en préstec
-     * - "reservat": Reservat per un usuari
-     *
-     * **Ús:**
-     * Permet a l'admin canviar manualment l'estat d'un exemplar
-     * per corregir errors o gestionar situacions especials.
-     *
-     * @param exemplarId ID de l'exemplar a actualitzar
-     * @param nouEstat Nou estat: "lliure", "prestat" o "reservat"
-     */
-    fun updateExemplarStatus(exemplarId: Long, nouEstat: String) {
-        viewModelScope.launch {
-            _exemplarsState.value = _exemplarsState.value.copy(isDeleting = exemplarId)
+                    e.message?.contains("404") == true ->
+                        "Exemplar no trobat"
 
-            try {
-                // Obtenir l'exemplar actual
-                val exemplar = _exemplarsState.value.exemplars.find { it.id == exemplarId }
-
-                if (exemplar == null) {
-                    _exemplarsState.value = _exemplarsState.value.copy(
-                        isDeleting = null,
-                        error = "Exemplar no trobat"
-                    )
-                    return@launch
+                    else ->
+                        "Error eliminant exemplar: ${e.message}"
                 }
 
-                // Crear exemplar actualitzat amb nou estat
-                val exemplarActualitzat = exemplar.copy(reservat = nouEstat)
-
-                // Enviar al backend
-                api.updateExemplar(exemplarId, exemplarActualitzat)
-
-                // Recarregar la llista
-                loadExemplars()
-
-            } catch (e: Exception) {
                 _exemplarsState.value = _exemplarsState.value.copy(
-                    isDeleting = null,
-                    error = "Error actualitzant estat: ${e.message}"
+                    error = errorMessage,
+                    isDeleting = null
                 )
             }
         }
     }
 
     /**
-     * Neteja els missatges d'error.
+     * Neteja els resultats de cerca d'exemplars.
+     */
+    fun clearSearchResults() {
+        _exemplarsState.value = _exemplarsState.value.copy(searchResults = null)
+    }
+
+    // ========== FUNCIONS D'UTILITAT ==========
+
+    /**
+     * Neteja tots els errors.
      */
     fun clearErrors() {
         _llibresState.value = _llibresState.value.copy(error = null)
         _autorsState.value = _autorsState.value.copy(error = null)
         _exemplarsState.value = _exemplarsState.value.copy(error = null)
-        _llibreFormState.value = _llibreFormState.value.copy(error = null)
-        _exemplarFormState.value = _exemplarFormState.value.copy(error = null)
     }
 
     /**
-     * Reinicia els estats dels formularis.
+     * Recarrega totes les dades.
      */
-    fun resetForms() {
-        _llibreFormState.value = LlibreFormState()
-        _exemplarFormState.value = ExemplarFormState()
+    fun refreshAll() {
+        loadLlibres()
+        loadAutors()
+        loadExemplars()
+    }
+
+    /**
+     * Obté un llibre per ID.
+     */
+    fun getLlibreById(id: Long): Llibre? {
+        return _llibresState.value.llibres.find { it.id == id }
+    }
+
+    /**
+     * Obté un autor per ID.
+     */
+    fun getAutorById(id: Long): Autor? {
+        return _autorsState.value.autors.find { it.id == id }
+    }
+
+    /**
+     * Obté un exemplar per ID.
+     */
+    fun getExemplarById(id: Long): Exemplar? {
+        return _exemplarsState.value.exemplars.find { it.id == id }
+    }
+
+    /**
+     * Comprova si un llibre té exemplars.
+     */
+    fun llibreHasExemplars(llibreId: Long): Boolean {
+        return _exemplarsState.value.exemplars.any { it.llibre?.id == llibreId }
+    }
+
+    /**
+     * Obté el nombre d'exemplars lliures d'un llibre.
+     */
+    fun getExemplarsLliuresCount(llibreId: Long): Int {
+        return _exemplarsState.value.exemplars.count {
+            it.llibre?.id == llibreId && it.reservat == "lliure"
+        }
+    }
+
+    /**
+     * Obté tots els exemplars d'un llibre.
+     */
+    fun getExemplarsByLlibre(llibreId: Long): List<Exemplar> {
+        return _exemplarsState.value.exemplars.filter { it.llibre?.id == llibreId }
     }
 }
 
 // ========== UI STATES ==========
 
 /**
- * Estat de la UI per la llista de llibres.
+ * Estat de la UI per llibres.
  */
 data class LlibresUiState(
     val llibres: List<Llibre> = emptyList(),
     val isLoading: Boolean = false,
+    val isCreating: Boolean = false,
+    val isUpdating: Long? = null,
     val isDeleting: Long? = null,
-    val error: String? = null
+    val error: String? = null,
 )
 
 /**
- * Estat del formulari de llibre.
- */
-data class LlibreFormState(
-    val isSubmitting: Boolean = false,
-    val success: Boolean = false,
-    val successMessage: String? = null,
-    val error: String? = null
-)
-
-/**
- * Estat de la UI per la llista d'autors.
+ * Estat de la UI per autors.
  */
 data class AutorsUiState(
     val autors: List<Autor> = emptyList(),
     val isLoading: Boolean = false,
-    val isAdding: Boolean = false,
+    val isCreating: Boolean = false,
     val isDeleting: Long? = null,
-    val error: String? = null
+    val error: String? = null,
 )
 
 /**
- * Estat de la UI per la llista d'exemplars.
+ * Estat de la UI per exemplars.
  */
 data class ExemplarsUiState(
     val exemplars: List<Exemplar> = emptyList(),
     val searchResults: List<Exemplar>? = null,
     val isLoading: Boolean = false,
     val isSearching: Boolean = false,
+    val isCreating: Boolean = false,
+    val isUpdating: Long? = null,
     val isDeleting: Long? = null,
-    val error: String? = null
-)
-
-/**
- * Estat del formulari d'exemplar.
- */
-data class ExemplarFormState(
-    val isSubmitting: Boolean = false,
-    val success: Boolean = false,
-    val successMessage: String? = null,
-    val error: String? = null
+    val error: String? = null,
 )

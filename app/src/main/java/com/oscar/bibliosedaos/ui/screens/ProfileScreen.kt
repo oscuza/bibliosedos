@@ -26,6 +26,7 @@ import com.oscar.bibliosedaos.data.network.TokenManager
 import com.oscar.bibliosedaos.navigation.AppScreens
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.oscar.bibliosedaos.data.network.User
 
 /**
@@ -72,6 +73,20 @@ fun ProfileScreen(
     var showDeleteUserDialog by remember { mutableStateOf(false) } // Diàleg simplificat (des del perfil)
     var showDeleteUserDialogWithSearch by remember { mutableStateOf(false) } // Diàleg amb cerca per NIF
     var showUpdateUserDialog by remember { mutableStateOf(false) }
+
+    // Estats observables
+    val updateUserState by authViewModel.updateUserState.collectAsState()
+    val deleteUserState by authViewModel.deleteUserState.collectAsState()
+    
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Variable per rastrejar si s'ha enviat el formulari de reset password
+    var hasSubmittedPasswordReset by remember { mutableStateOf(false) }
+    
+    // Variables per rastrejar si s'ha iniciat l'eliminació d'usuari
+    var hasSubmittedDeleteUser by remember { mutableStateOf(false) }
+    var hasSubmittedDeleteUserWithSearch by remember { mutableStateOf(false) }
 
 
     // ========== Càrrega del Perfil ==========
@@ -161,7 +176,9 @@ fun ProfileScreen(
                     Icon(Icons.AutoMirrored.Filled.ExitToApp, "Tancar Sessió")
                 }
             })
-        }) { paddingValues ->
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -343,6 +360,96 @@ fun ProfileScreen(
         }
     }
 
+    // ========== GESTIÓ DE RESPOSTES DE RESET PASSWORD ==========
+    
+    LaunchedEffect(updateUserState.isUpdating, updateUserState.error) {
+        if (hasSubmittedPasswordReset && !updateUserState.isUpdating) {
+            if (updateUserState.error == null && updateUserState.success) {
+                // Èxit: mostra missatge i tanca diàleg
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = "Contrasenya restablida correctament",
+                        duration = SnackbarDuration.Short
+                    )
+                }
+                hasSubmittedPasswordReset = false
+                showResetPasswordDialog = false
+            } else {
+                // Error: només mostra l'error (ja es gestiona en un altre LaunchedEffect)
+                hasSubmittedPasswordReset = false
+            }
+        }
+    }
+
+    LaunchedEffect(updateUserState.error) {
+        if (hasSubmittedPasswordReset) {
+            updateUserState.error?.let { error ->
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = error,
+                        duration = SnackbarDuration.Long,
+                        actionLabel = "Tancar"
+                    )
+                }
+            }
+        }
+    }
+
+    // ========== GESTIÓ DE RESPOSTES DE DELETE USER ==========
+    
+    LaunchedEffect(deleteUserState.isDeleting, deleteUserState.error) {
+        if ((hasSubmittedDeleteUser || hasSubmittedDeleteUserWithSearch) && !deleteUserState.isDeleting) {
+            if (deleteUserState.error == null && deleteUserState.success) {
+                // Èxit: mostra missatge i navega
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = "Usuari eliminat correctament",
+                        duration = SnackbarDuration.Short
+                    )
+                }
+                hasSubmittedDeleteUser = false
+                hasSubmittedDeleteUserWithSearch = false
+                showDeleteUserDialog = false
+                showDeleteUserDialogWithSearch = false
+                
+                // 1. Obtenir l'ID de l'usuari actiu (l'administrador)
+                val currentUserId = loginState.authResponse?.id ?: 0L
+                
+                // 2. Netejar la pila fins a la Home de l'Admin
+                navController.popBackStack(
+                    route = AppScreens.AdminHomeScreen.route,
+                    inclusive = false // Manté AdminHomeScreen
+                )
+                
+                // 3. Navegar al perfil de l'usuari actiu (l'administrador)
+                navController.navigate(
+                    AppScreens.UserProfileScreen.createRoute(currentUserId)
+                ) {
+                    // Assegura que no es creen múltiples instàncies
+                    launchSingleTop = true
+                }
+            } else {
+                // Error: només mostra l'error (ja es gestiona en un altre LaunchedEffect)
+                hasSubmittedDeleteUser = false
+                hasSubmittedDeleteUserWithSearch = false
+            }
+        }
+    }
+
+    LaunchedEffect(deleteUserState.error) {
+        if (hasSubmittedDeleteUser || hasSubmittedDeleteUserWithSearch) {
+            deleteUserState.error?.let { error ->
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = error,
+                        duration = SnackbarDuration.Long,
+                        actionLabel = "Tancar"
+                    )
+                }
+            }
+        }
+    }
+
     // ========== Diàleg per Restablir Contrasenya (Admins) ==========
     if (showResetPasswordDialog) {
         var newPassword by remember { mutableStateOf("") }
@@ -393,21 +500,25 @@ fun ProfileScreen(
             TextButton(
                 onClick = {
                     if (newPassword.length >= 6 && newPassword == confirmPassword) {
+                        hasSubmittedPasswordReset = true
                         authViewModel.resetUserPassword(
                             userId = userId,
-                            newPassword = newPassword,
-                            onResult = { success, message ->
-                                if (success) {
-                                    showResetPasswordDialog = false
-                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                                } else {
-                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                                }
-                            })
+                            newPassword = newPassword
+                        )
                     }
-                }, enabled = newPassword.length >= 6 && newPassword == confirmPassword
+                }, 
+                enabled = newPassword.length >= 6 && 
+                         newPassword == confirmPassword && 
+                         !updateUserState.isUpdating
             ) {
-                Text("RESTABLIR")
+                if (updateUserState.isUpdating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    Text("RESTABLIR")
+                }
             }
         }, dismissButton = {
             TextButton(onClick = { showResetPasswordDialog = false }) {
@@ -515,56 +626,25 @@ fun ProfileScreen(
                 Button(
                     onClick = {
                         userToDelete?.let { user ->
-                            authViewModel.deleteUser(
-                                userId = user.id,
-                                onResult = { success, message ->
-                                    if (success) {
-                                        showDeleteUserDialog = false
-                                        Toast.makeText(
-                                            context,
-                                            "✅ $message",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-
-                                        // 1. Obtenir l'ID de l'usuari actiu (l'administrador)
-                                        val currentUserId =
-                                            authViewModel.loginUiState.value.authResponse?.id ?: 0L
-
-                                        // 2. Netejar la pila fins a la Home de l'Admin
-                                        navController.popBackStack(
-                                            route = AppScreens.AdminHomeScreen.route,
-                                            inclusive = false // Manté AdminHomeScreen
-                                        )
-
-                                        // 3. Navegar al perfil de l'usuari actiu (l'administrador)
-                                        navController.navigate(
-                                            AppScreens.UserProfileScreen.route.replace(
-                                                "{userId}",
-                                                currentUserId.toString()
-                                            )
-                                        ) {
-                                            // Assegura que no es creen múltiples instàncies
-                                            launchSingleTop = true
-                                        }
-                                    } else {
-                                        Toast.makeText(
-                                            context,
-                                            "❌ $message",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-                                    }
-                                }
-                            )
+                            hasSubmittedDeleteUser = true
+                            authViewModel.deleteUser(userId = user.id)
                         }
                     },
-                    enabled = confirmationText == requiredText,
+                    enabled = confirmationText == requiredText && !deleteUserState.isDeleting,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Icon(Icons.Default.Delete, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("ELIMINAR DEFINITIVAMENT")
+                    if (deleteUserState.isDeleting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = MaterialTheme.colorScheme.onError
+                        )
+                    } else {
+                        Icon(Icons.Default.Delete, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("ELIMINAR DEFINITIVAMENT")
+                    }
                 }
             },
             dismissButton = {
@@ -852,52 +932,25 @@ fun ProfileScreen(
                 Button(
                     onClick = {
                         userFound?.let { user ->
-                            authViewModel.deleteUser(
-                                userId = user.id, onResult = { success, message ->
-                                    if (success) {
-                                        showDeleteUserDialogWithSearch = false
-                                        showConfirmation = false
-                                        Toast.makeText(
-                                            context, "✅ $message", Toast.LENGTH_LONG
-                                        ).show()
-                                        userFound = null
-                                        nifToDelete = ""
-                                        // 1. Obtenir l'ID de l'usuari actiu (l'administrador)
-                                        val currentUserId =
-                                            authViewModel.loginUiState.value.authResponse?.id ?: 0L
-
-                                        // 2. Netejar la pila fins a la Home de l'Admin
-                                        navController.popBackStack(
-                                            route = AppScreens.AdminHomeScreen.route,
-                                            inclusive = false // Manté AdminHomeScreen
-                                        )
-
-                                        // 3. Navegar al perfil de l'usuari actiu (l'administrador)
-                                        navController.navigate(
-                                            AppScreens.UserProfileScreen.route.replace(
-                                                "{userId}",
-                                                currentUserId.toString()
-                                            )
-                                        ) {
-                                            // Assegura que no es creen múltiples instàncies
-                                            launchSingleTop = true
-                                        }
-                                    } else {
-                                        Toast.makeText(
-                                            context, "❌ $message", Toast.LENGTH_LONG
-                                        ).show()
-                                    }
-                                })
+                            hasSubmittedDeleteUserWithSearch = true
+                            authViewModel.deleteUser(userId = user.id)
                         }
                     },
-                    enabled = confirmationText == requiredText,
+                    enabled = confirmationText == requiredText && !deleteUserState.isDeleting,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Icon(Icons.Default.Delete, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("ELIMINAR DEFINITIVAMENT")
+                    if (deleteUserState.isDeleting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = MaterialTheme.colorScheme.onError
+                        )
+                    } else {
+                        Icon(Icons.Default.Delete, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("ELIMINAR DEFINITIVAMENT")
+                    }
                 }
             }, dismissButton = {
                 TextButton(
