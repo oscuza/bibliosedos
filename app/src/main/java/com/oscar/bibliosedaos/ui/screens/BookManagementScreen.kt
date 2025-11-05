@@ -28,8 +28,8 @@ import com.oscar.bibliosedaos.data.network.User
 import com.oscar.bibliosedaos.navigation.AppScreens
 import com.oscar.bibliosedaos.ui.viewmodels.*
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import java.text.SimpleDateFormat
+import java.util.*
 
 /**
  * Pantalla principal de gestió del catàleg de llibres amb gestió de préstecs integrada.
@@ -39,6 +39,7 @@ import java.time.format.DateTimeFormatter
  * @param authViewModel ViewModel per gestió d'usuaris
  * @param loanViewModel ViewModel per gestió de préstecs
  */
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookManagementScreen(
@@ -360,7 +361,6 @@ private fun AutorsTab(
 
 // ========== NOVA PESTANYA D'EXEMPLARS AMB GESTIÓ DE PRÉSTECS ==========
 
-@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExemplarsTabWithLoans(
@@ -516,7 +516,8 @@ fun ExemplarsTabWithLoans(
                     )
 
                     if (targetStatus == ExemplarStatus.PRESTAT) {
-                        val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+                        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                        val today = dateFormat.format(Date())
                         loanViewModel.createLoan(
                             usuariId = user.id,
                             exemplarId = selectedExemplar!!.id!!,
