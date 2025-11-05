@@ -2,14 +2,12 @@ package com.oscar.bibliosedaos.ui.screens
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -20,9 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -639,7 +635,7 @@ fun ExemplarItemWithLoan(
                             expanded = showStatusMenu,
                             onDismissRequest = { showStatusMenu = false }
                         ) {
-                            ExemplarStatus.values().forEach { status ->
+                            ExemplarStatus.entries.forEach { status ->
                                 DropdownMenuItem(
                                     text = {
                                         Row(
@@ -888,7 +884,7 @@ enum class ExemplarStatus(val value: String, val displayName: String, val color:
 
     companion object {
         fun fromString(value: String): ExemplarStatus {
-            return values().find { it.value == value } ?: LLIURE
+            return ExemplarStatus.entries.find { it.value == value } ?: LLIURE
         }
     }
 }

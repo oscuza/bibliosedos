@@ -453,6 +453,7 @@ object LoanManagementUtils {
     /**
      * Formata una data per mostrar a la UI.
      */
+    @RequiresApi(Build.VERSION_CODES.O)
     fun formatDate(dateString: String): String {
         return try {
             val date = LocalDate.parse(dateString)
@@ -465,6 +466,7 @@ object LoanManagementUtils {
     /**
      * Calcula els dies de préstec.
      */
+    @RequiresApi(Build.VERSION_CODES.O)
     fun calculateLoanDays(dataPrestec: String): Long {
         return try {
             val startDate = LocalDate.parse(dataPrestec)

@@ -335,9 +335,7 @@ fun AddBookScreen(
                                 trailingIcon = {
                                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                                 },
-                                modifier = Modifier
-                                    .menuAnchor()
-                                    .fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth()
                             )
 
                             ExposedDropdownMenu(

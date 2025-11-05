@@ -228,9 +228,7 @@ fun AddExemplarScreen(
                             supportingText = {
                                 llibreError?.let { Text(it) }
                             },
-                            modifier = Modifier
-                                .menuAnchor()
-                                .fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth()
                         )
 
                         ExposedDropdownMenu(
