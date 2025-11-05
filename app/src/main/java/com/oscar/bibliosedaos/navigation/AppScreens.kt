@@ -426,4 +426,49 @@ sealed class AppScreens(val route: String) {
      * @see UsersWithLoansScreen
      */
     object UsersWithLoansScreen : AppScreens("users_with_loans")
+
+    /**
+     * Pantalla de historial complet de préstecs de l'usuari.
+     *
+     * **Descripció:**
+     * Mostra tots els préstecs (actius i retornats) d'un usuari. Pot funcionar en dos modes:
+     * - Sense userId: mostra l'historial de l'usuari actual
+     * - Amb userId: mostra l'historial d'un usuari específic (administrador)
+     *
+     * **Funcionalitats:**
+     * - Llistat complet de préstecs (actius i retornats)
+     * - Filtres per veure tots, només actius o només retornats
+     * - Informació del llibre, autor i dates del préstec
+     * - Indicador visual diferent per préstecs actius vs retornats
+     * - Botó per retornar llibre (només per préstecs actius)
+     * - Actualització automàtica després de retornar un llibre
+     *
+     * **Permisos:**
+     * - 👥 Usuari normal: veu només el seu historial i pot retornar els seus préstecs actius
+     * - 👨‍💼 Administrador: pot veure historial de qualsevol usuari i retornar préstecs
+     *
+     * **Paràmetres de Ruta:**
+     * - `userId`: (Opcional) Identificador de l'usuari. Si no es proporciona,
+     *   mostra l'historial de l'usuari autenticat.
+     *
+     * **Ruta:** `loan_history_screen?userId={userId}` o `loan_history_screen`
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see LoanHistoryScreen
+     */
+    object LoanHistoryScreen : AppScreens("loan_history_screen?userId={userId}") {
+        /**
+         * Crea una ruta per veure l'historial d'un usuari específic.
+         *
+         * @param userId Identificador de l'usuari
+         * @return String amb la ruta completa
+         */
+        fun createRoute(userId: Long) = "loan_history_screen?userId=$userId"
+
+        /**
+         * Ruta per veure l'historial de l'usuari actual (sense paràmetres).
+         */
+        const val routeWithoutParams = "loan_history_screen"
+    }
 }

@@ -19,7 +19,21 @@ import androidx.navigation.navArgument
 import com.oscar.bibliosedaos.data.network.ApiClient
 import com.oscar.bibliosedaos.data.network.TokenManager
 import com.oscar.bibliosedaos.navigation.AppScreens
-import com.oscar.bibliosedaos.ui.screens.*
+import com.oscar.bibliosedaos.ui.screens.auth.LoginScreen
+import com.oscar.bibliosedaos.ui.screens.profile.ProfileScreen
+import com.oscar.bibliosedaos.ui.screens.profile.EditProfileScreen
+import com.oscar.bibliosedaos.ui.screens.profile.ChangePasswordScreen
+import com.oscar.bibliosedaos.ui.screens.books.BooksScreen
+import com.oscar.bibliosedaos.ui.screens.books.BookManagementScreen
+import com.oscar.bibliosedaos.ui.screens.books.AddBookScreen
+import com.oscar.bibliosedaos.ui.screens.books.EditBookScreen
+import com.oscar.bibliosedaos.ui.screens.books.AddExemplarScreen
+import com.oscar.bibliosedaos.ui.screens.loans.MyLoansScreen
+import com.oscar.bibliosedaos.ui.screens.loans.UsersWithLoansScreen
+import com.oscar.bibliosedaos.ui.screens.loans.LoanHistoryScreen
+import com.oscar.bibliosedaos.ui.screens.admin.AdminHomeScreen
+import com.oscar.bibliosedaos.ui.screens.admin.AddUserScreen
+import com.oscar.bibliosedaos.ui.screens.admin.UserSearchScreen
 import com.oscar.bibliosedaos.ui.theme.BibliotecaCloudTheme
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
 import androidx.lifecycle.lifecycleScope
@@ -240,6 +254,33 @@ fun AppNavigation() {
                 navController = navController,
                 loanViewModel = loanViewModel,
                 authViewModel = authViewModel
+            )
+        }
+
+        // ========== PANTALLA D'HISTORIAL DE PRÉSTECS ==========
+
+        /**
+         * Pantalla de historial complet de préstecs de l'usuari.
+         * Mostra tots els préstecs (actius i retornats) d'un usuari.
+         * Accepta userId opcional per veure historial d'altres usuaris (admin).
+         */
+        composable(
+            route = AppScreens.LoanHistoryScreen.route,
+            arguments = listOf(
+                navArgument("userId") {
+                    type = NavType.LongType
+                    defaultValue = -1L  // -1 indica "usuari actual"
+                    nullable = false
+                }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getLong("userId") ?: -1L
+
+            LoanHistoryScreen(
+                navController = navController,
+                loanViewModel = loanViewModel,
+                authViewModel = authViewModel,
+                userId = if (userId == -1L) null else userId
             )
         }
     }
