@@ -466,17 +466,34 @@ sealed class AppScreens(val route: String) {
      * @see LoanHistoryScreen
      */
     object LoanHistoryScreen : AppScreens("loan_history_screen?userId={userId}") {
-        /**
-         * Crea una ruta per veure l'historial d'un usuari específic.
-         *
-         * @param userId Identificador de l'usuari
-         * @return String amb la ruta completa
-         */
-        fun createRoute(userId: Long) = "loan_history_screen?userId=$userId"
-
-        /**
-         * Ruta per veure l'historial de l'usuari actual (sense paràmetres).
-         */
+        fun createRoute(userId: Long? = null) = "loan_history_screen?userId=${userId ?: ""}"
         const val routeWithoutParams = "loan_history_screen"
     }
+
+    /**
+     * Pantalla de gestió d'usuaris amb préstecs en retard o retornats tard.
+     *
+     * **Descripció:**
+     * Pantalla exclusiva per a administradors que mostra un llistat de tots els usuaris
+     * que tenen préstecs en retard (actius) o que han retornat llibres tard (històrics).
+     *
+     * **Funcionalitats:**
+     * - Llistat d'usuaris amb préstecs en retard (actius)
+     * - Llistat d'usuaris que han retornat llibres tard (històrics)
+     * - Agrupació per usuari amb informació detallada
+     * - Indicadors visuals de gravetat
+     * - Navegació als préstecs de cada usuari
+     * - Funcionalitat de sancions
+     *
+     * **Accés:**
+     * Només accessible per usuaris amb rol d'administrador (rol=2).
+     *
+     * **Ruta:** `overdue_loans_screen`
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see OverdueLoansScreen
+     * @see AdminHomeScreen
+     */
+    object OverdueLoansScreen : AppScreens("overdue_loans_screen")
 }

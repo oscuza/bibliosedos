@@ -34,6 +34,7 @@ import com.oscar.bibliosedaos.ui.screens.loans.LoanHistoryScreen
 import com.oscar.bibliosedaos.ui.screens.admin.AdminHomeScreen
 import com.oscar.bibliosedaos.ui.screens.admin.AddUserScreen
 import com.oscar.bibliosedaos.ui.screens.admin.UserSearchScreen
+import com.oscar.bibliosedaos.ui.screens.admin.OverdueLoansScreen
 import com.oscar.bibliosedaos.ui.theme.BibliotecaCloudTheme
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
 import androidx.lifecycle.lifecycleScope
@@ -291,6 +292,20 @@ fun AppNavigation() {
                 loanViewModel = loanViewModel,
                 authViewModel = authViewModel,
                 userId = if (userId == -1L) null else userId
+            )
+        }
+
+        // ========== PANTALLA DE PRÉSTECS EN RETARD (ADMIN) ==========
+
+        /**
+         * Pantalla que mostra tots els usuaris amb préstecs en retard o retornats tard.
+         * Només accessible per administradors.
+         */
+        composable(AppScreens.OverdueLoansScreen.route) {
+            OverdueLoansScreen(
+                navController = navController,
+                loanViewModel = loanViewModel,
+                authViewModel = authViewModel
             )
         }
     }
