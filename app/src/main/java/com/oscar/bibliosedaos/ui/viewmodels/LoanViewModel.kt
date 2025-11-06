@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import retrofit2.Response
+import java.io.IOException
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -217,24 +220,73 @@ class LoanViewModel : ViewModel() {
             )
 
             try {
-                val message = api.retornarPrestec(prestecId)
-
-                _returnLoanState.value = ReturnLoanState(
-                    success = true,
-                    successMessage = message,
-                    returnedLoanId = prestecId
-                )
-
-            } catch (e: Exception) {
-                val errorMessage = when {
-                    e.message?.contains("404") == true -> "Préstec no trobat"
-                    e.message?.contains("403") == true -> "No tens permisos per retornar aquest préstec"
-                    else -> "Error retornant préstec: ${e.message}"
+                val response = api.retornarPrestec(prestecId)
+                
+                if (response.isSuccessful) {
+                    // Llegir el cos de la resposta com a String
+                    // Nota: response.body()?.string() només es pot cridar una vegada
+                    val message = try {
+                        response.body()?.use { it.string() }?.trim() ?: "Préstec retornat correctament"
+                    } catch (e: IOException) {
+                        // Si hi ha error llegint el cos, assumim que l'operació va bé
+                        // (pot ser que el cos estigui buit o ja consumit)
+                        "Préstec retornat correctament"
+                    } catch (e: Exception) {
+                        // Qualsevol altre error també assumim que va bé
+                        "Préstec retornat correctament"
+                    }
+                    
+                    _returnLoanState.value = ReturnLoanState(
+                        success = true,
+                        successMessage = message,
+                        returnedLoanId = prestecId
+                    )
+                    
+                    // NO recarregar automàticament els préstecs aquí
+                    // La pantalla ho farà quan sigui necessari amb el usuariId correcte
+                } else {
+                    // Resposta no exitosa - llegir el missatge d'error si existeix
+                    val errorMessage = try {
+                        response.errorBody()?.use { it.string() }?.trim()
+                    } catch (e: Exception) {
+                        null
+                    }
+                    
+                    val finalErrorMessage = errorMessage ?: when (response.code()) {
+                        404 -> "Préstec no trobat"
+                        403 -> "No tens permisos per retornar aquest préstec"
+                        else -> "Error retornant préstec (codi ${response.code()})"
+                    }
+                    
+                    _returnLoanState.value = _returnLoanState.value.copy(
+                        isReturning = null,
+                        error = finalErrorMessage
+                    )
                 }
 
+            } catch (e: HttpException) {
+                // HttpException s'hauria de capturar abans, però per seguretat
+                val errorMessage = when (e.code()) {
+                    404 -> "Préstec no trobat"
+                    403 -> "No tens permisos per retornar aquest préstec"
+                    else -> "Error retornant préstec (codi ${e.code()})"
+                }
+                
                 _returnLoanState.value = _returnLoanState.value.copy(
                     isReturning = null,
                     error = errorMessage
+                )
+            } catch (e: IOException) {
+                // Error de xarxa real
+                _returnLoanState.value = _returnLoanState.value.copy(
+                    isReturning = null,
+                    error = "Error de connexió. Comprova la teva connexió a Internet"
+                )
+            } catch (e: Exception) {
+                // Qualsevol altre error
+                _returnLoanState.value = _returnLoanState.value.copy(
+                    isReturning = null,
+                    error = "Error retornant préstec: ${e.message ?: "Error desconegut"}"
                 )
             }
         }

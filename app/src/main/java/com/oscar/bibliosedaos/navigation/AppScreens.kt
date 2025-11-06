@@ -226,7 +226,15 @@ sealed class AppScreens(val route: String) {
      * @see EditProfileScreen
      * @see User
      */
-    object EditProfileScreen : AppScreens("edit_profile_screen")
+    object EditProfileScreen : AppScreens("edit_profile_screen?userId={userId}") {
+        fun createRoute(userId: Long? = null): String {
+            return if (userId != null) {
+                "edit_profile_screen?userId=$userId"
+            } else {
+                "edit_profile_screen"
+            }
+        }
+    }
 
     // ========== PANTALLAS COMPARTIDAS (FUTURO) ==========
 

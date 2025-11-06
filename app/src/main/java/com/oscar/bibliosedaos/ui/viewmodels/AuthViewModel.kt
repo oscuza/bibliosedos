@@ -4,11 +4,14 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
 import com.oscar.bibliosedaos.data.network.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import java.io.IOException
 
 /**
  * ViewModel per gestionar l'autenticació i usuaris de l'aplicació.
@@ -97,14 +100,7 @@ class AuthViewModel : ViewModel() {
                     authResponse = authResponse
                 )
             } catch (e: Exception) {
-                val errorMessage = when {
-                    e.message?.contains("401") == true -> "Credencials incorrectes"
-                    e.message?.contains("403") == true -> "Accés denegat"
-                    e.message?.contains("404") == true -> "Servei no disponible"
-                    e.message?.contains("Unable to resolve") == true -> "Error de connexió"
-                    else -> "Error al iniciar sessió: ${e.message}"
-                }
-
+                val errorMessage = handleHttpError(e, "Error al iniciar sessió")
                 _loginUiState.value = LoginUiState(
                     isLoading = false,
                     error = errorMessage
@@ -146,8 +142,9 @@ class AuthViewModel : ViewModel() {
                     isLoading = false
                 )
             } catch (e: Exception) {
+                val errorMessage = handleHttpError(e, "Error carregant perfil")
                 _userProfileState.value = UserProfileUiState(
-                    error = "Error carregant perfil: ${e.message}",
+                    error = errorMessage,
                     isLoading = false
                 )
             }
@@ -162,16 +159,62 @@ class AuthViewModel : ViewModel() {
         nom: String,
         cognom1: String,
         cognom2: String?,
+        nif: String?,
         email: String?,
-        tlf: String?
+        tlf: String?,
+        carrer: String?,
+        localitat: String?,
+        cp: String?,
+        provincia: String?
     ) {
         val user = _currentUser.value ?: return
+        updateUserProfile(
+            userId = user.id,
+            nick = nick,
+            nom = nom,
+            cognom1 = cognom1,
+            cognom2 = cognom2,
+            nif = nif,
+            email = email,
+            tlf = tlf,
+            carrer = carrer,
+            localitat = localitat,
+            cp = cp,
+            provincia = provincia,
+            updateCurrentUser = true
+        )
+    }
 
+    /**
+     * Actualitza el perfil d'un usuari (pot ser l'actual o un altre).
+     * Utilitzat per administradors per editar altres usuaris.
+     *
+     * @param userId ID de l'usuari a actualitzar
+     * @param updateCurrentUser Si és true, actualitza també _currentUser (per edició del propi perfil)
+     */
+    fun updateUserProfile(
+        userId: Long,
+        nick: String,
+        nom: String,
+        cognom1: String,
+        cognom2: String?,
+        nif: String?,
+        email: String?,
+        tlf: String?,
+        carrer: String?,
+        localitat: String?,
+        cp: String?,
+        provincia: String?,
+        updateCurrentUser: Boolean = false
+    ) {
         viewModelScope.launch {
             _updateUserState.value = UpdateUserUiState(isUpdating = true)
 
             try {
-                // Mantenim els camps obligatoris existents si no es proporcionen
+                // Carregar les dades actuals de l'usuari que es vol actualitzar
+                val user = api.getUserById(userId)
+
+                // Utilitzem els valors proporcionats, o mantenim els existents si no es proporcionen
                 val updateRequest = UpdateUserRequest(
                     id = user.id,
                     nick = nick,
@@ -179,25 +222,30 @@ class AuthViewModel : ViewModel() {
                     cognom1 = cognom1,
                     cognom2 = cognom2,
                     rol = user.rol,
-                    nif = user.nif ?: "000000000",
-                    localitat = user.localitat ?: "Desconeguda",
-                    carrer = user.carrer ?: "Desconegut",
-                    cp = user.cp ?: "00000",
-                    provincia = user.provincia ?: "Desconeguda",
-                    tlf = tlf ?: user.tlf ?: "000000000",
-                    email = email ?: user.email ?: "unknown@example.com"
+                    nif = nif?.takeIf { it.isNotBlank() } ?: (user.nif ?: "000000000"),
+                    localitat = localitat?.takeIf { it.isNotBlank() } ?: (user.localitat ?: "Desconeguda"),
+                    carrer = carrer?.takeIf { it.isNotBlank() } ?: (user.carrer ?: "Desconegut"),
+                    cp = cp?.takeIf { it.isNotBlank() } ?: (user.cp ?: "00000"),
+                    provincia = provincia?.takeIf { it.isNotBlank() } ?: (user.provincia ?: "Desconeguda"),
+                    tlf = tlf?.takeIf { it.isNotBlank() } ?: (user.tlf ?: "000000000"),
+                    email = email?.takeIf { it.isNotBlank() } ?: (user.email ?: "unknown@example.com")
                 )
 
-                val updatedUser = api.updateUser(user.id, updateRequest)
+                val updatedUser = api.updateUser(userId, updateRequest)
 
-                _currentUser.value = updatedUser
+                // Si s'està actualitzant el propi perfil, actualitzar també _currentUser
+                if (updateCurrentUser) {
+                    _currentUser.value = updatedUser
+                }
+
                 _updateUserState.value = UpdateUserUiState(
                     success = true,
                     updatedUser = updatedUser
                 )
             } catch (e: Exception) {
+                val errorMessage = handleHttpError(e, "Error actualitzant perfil")
                 _updateUserState.value = UpdateUserUiState(
-                    error = "Error actualitzant perfil: ${e.message}"
+                    error = errorMessage
                 )
             }
         }
@@ -220,14 +268,7 @@ class AuthViewModel : ViewModel() {
                     isLoading = false
                 )
             } catch (e: Exception) {
-                val errorMessage = when {
-                    e.message?.contains("403") == true ->
-                        "No tens permisos per veure els usuaris"
-                    e.message?.contains("401") == true ->
-                        "Sessió expirada, torna a iniciar sessió"
-                    else ->
-                        "Error carregant usuaris: ${e.message}"
-                }
+                val errorMessage = handleHttpError(e, "Error carregant usuaris")
                 _allUsersState.value = UsersUiState(
                     error = errorMessage,
                     isLoading = false
@@ -298,11 +339,7 @@ class AuthViewModel : ViewModel() {
                     searchResult = user
                 )
             } catch (e: Exception) {
-                val errorMessage = when {
-                    e.message?.contains("404") == true -> "No s'ha trobat cap usuari amb aquest ID"
-                    e.message?.contains("401") == true -> "Sessió expirada, torna a iniciar sessió"
-                    else -> "Error cercant usuari: ${e.message}"
-                }
+                val errorMessage = handleHttpError(e, "Error cercant usuari")
                 _userSearchState.value = UserSearchUiState(
                     hasSearched = true,
                     error = errorMessage
@@ -332,11 +369,7 @@ class AuthViewModel : ViewModel() {
                     )
                 }
             } catch (e: Exception) {
-                val errorMessage = when {
-                    e.message?.contains("404") == true -> "No s'ha trobat cap usuari amb aquest NIF"
-                    e.message?.contains("401") == true -> "Sessió expirada, torna a iniciar sessió"
-                    else -> "Error cercant usuari: ${e.message}"
-                }
+                val errorMessage = handleHttpError(e, "Error cercant usuari")
                 _userSearchState.value = UserSearchUiState(
                     hasSearched = true,
                     error = errorMessage
@@ -403,13 +436,7 @@ class AuthViewModel : ViewModel() {
                 loadAllUsers()
 
             } catch (e: Exception) {
-                val errorMessage = when {
-                    e.message?.contains("409") == true -> "El nick o email ja existeix"
-                    e.message?.contains("400") == true -> "Dades invàlides"
-                    e.message?.contains("403") == true -> "No tens permisos per crear usuaris"
-                    else -> "Error creant usuari: ${e.message}"
-                }
-
+                val errorMessage = handleHttpError(e, "Error creant usuari")
                 _createUserState.value = CreateUserUiState(
                     error = errorMessage
                 )
@@ -438,11 +465,7 @@ class AuthViewModel : ViewModel() {
                     deletedUserId = userId
                 )
             } catch (e: Exception) {
-                val errorMessage = when {
-                    e.message?.contains("404") == true -> "Usuari no trobat"
-                    e.message?.contains("403") == true -> "No tens permisos per eliminar usuaris"
-                    else -> "Error eliminant usuari: ${e.message}"
-                }
+                val errorMessage = handleHttpError(e, "Error eliminant usuari")
                 _deleteUserState.value = DeleteUserUiState(
                     error = errorMessage
                 )
@@ -491,11 +514,7 @@ class AuthViewModel : ViewModel() {
                     success = true
                 )
             } catch (e: Exception) {
-                val errorMessage = when {
-                    e.message?.contains("401") == true -> "Contrasenya actual incorrecta"
-                    else -> "Error canviant contrasenya: ${e.message}"
-                }
-
+                val errorMessage = handleHttpError(e, "Error canviant contrasenya")
                 _changePasswordState.value = ChangePasswordUiState(
                     error = errorMessage
                 )
@@ -540,12 +559,7 @@ class AuthViewModel : ViewModel() {
                     updatedUser = updatedUser
                 )
             } catch (e: Exception) {
-                val errorMessage = when {
-                    e.message?.contains("404") == true -> "Usuari no trobat"
-                    e.message?.contains("403") == true -> "No tens permisos per restablir contrasenyes"
-                    else -> "Error restablint contrasenya: ${e.message}"
-                }
-                
+                val errorMessage = handleHttpError(e, "Error restablint contrasenya")
                 _updateUserState.value = UpdateUserUiState(
                     error = errorMessage
                 )
@@ -554,6 +568,100 @@ class AuthViewModel : ViewModel() {
     }
 
     // ==================== FUNCIONS D'UTILITAT ====================
+
+    /**
+     * Helper per gestionar errors HTTP de forma consistent.
+     * Detecta el codi HTTP i intenta parsear el missatge d'error del backend.
+     *
+     * @param e L'excepció capturada
+     * @param defaultMessage Missatge per defecte si no es pot determinar l'error
+     * @return Missatge d'error amigable per mostrar a l'usuari
+     */
+    private fun handleHttpError(e: Exception, defaultMessage: String = "Error desconegut"): String {
+        return when (e) {
+            is HttpException -> {
+                val code = e.code()
+                val errorBody = try {
+                    e.response()?.errorBody()?.string()
+                } catch (ex: IOException) {
+                    null
+                }
+
+                // Intentar parsear el errorBody com ErrorMessage
+                val errorMessage = errorBody?.let { body ->
+                    try {
+                        val gson = Gson()
+                        val error = gson.fromJson(body, ErrorMessage::class.java)
+                        error.message
+                    } catch (ex: Exception) {
+                        null
+                    }
+                }
+
+                // Si tenim un missatge del backend, l'utilitzem
+                val backendMessage = errorMessage ?: errorBody
+
+                when (code) {
+                    409 -> {
+                        // CONFLICT - Email/Nick duplicat
+                        when {
+                            backendMessage?.contains("llave duplicada", ignoreCase = true) == true ||
+                            backendMessage?.contains("clau duplicada", ignoreCase = true) == true ||
+                            backendMessage?.contains("ya existe", ignoreCase = true) == true ||
+                            backendMessage?.contains("ja existeix", ignoreCase = true) == true -> {
+                                "L'email o nick ja està en ús per un altre usuari"
+                            }
+                            backendMessage != null -> backendMessage
+                            else -> "L'email o nick ja està en ús per un altre usuari"
+                        }
+                    }
+                    400 -> {
+                        // BAD REQUEST - Dades invàlides
+                        backendMessage ?: "Dades invàlides. Si us plau, revisa els camps"
+                    }
+                    401 -> {
+                        // UNAUTHORIZED - No autenticat
+                        "Sessió expirada, torna a iniciar sessió"
+                    }
+                    403 -> {
+                        // FORBIDDEN - Sense permisos
+                        backendMessage ?: "No tens permisos per realitzar aquesta acció"
+                    }
+                    404 -> {
+                        // NOT FOUND
+                        backendMessage ?: "Recurs no trobat"
+                    }
+                    else -> {
+                        backendMessage ?: "Error del servidor (codi $code)"
+                    }
+                }
+            }
+            is IOException -> {
+                "Error de connexió. Comprova la teva connexió a Internet"
+            }
+            else -> {
+                // Per altres tipus d'errors, buscar indicadors al missatge
+                val message = e.message ?: ""
+                when {
+                    message.contains("409", ignoreCase = true) ||
+                    message.contains("CONFLICT", ignoreCase = true) ||
+                    message.contains("duplicada", ignoreCase = true) ||
+                    message.contains("duplicado", ignoreCase = true) ||
+                    message.contains("ya existe", ignoreCase = true) ||
+                    message.contains("ja existeix", ignoreCase = true) -> {
+                        "L'email o nick ja està en ús per un altre usuari"
+                    }
+                    message.contains("Unable to resolve", ignoreCase = true) ||
+                    message.contains("Failed to connect", ignoreCase = true) -> {
+                        "Error de connexió. Comprova la teva connexió a Internet"
+                    }
+                    else -> {
+                        defaultMessage + (if (message.isNotEmpty()) ": $message" else "")
+                    }
+                }
+            }
+        }
+    }
 
     /**
      * Neteja els errors de tots els estats.

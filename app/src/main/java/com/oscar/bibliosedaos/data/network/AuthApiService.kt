@@ -14,6 +14,22 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
+ * Model de resposta d'error del backend.
+ * Utilitzat per parsear els errors HTTP retornats pel servidor.
+ *
+ * El backend retorna un objecte amb:
+ * - status: HttpStatus (enum) que es serialitza com un objecte o string
+ * - message: String amb el missatge d'error
+ *
+ * @property status Codi d'estat HTTP (pot ser objecte HttpStatus o string)
+ * @property message Missatge d'error descriptiu
+ */
+data class ErrorMessage(
+    @SerializedName("status") val status: Any? = null,
+    @SerializedName("message") val message: String? = null
+)
+
+/**
  * Interfície Retrofit per a l'API REST de BibliotecaCloud
  * Petició d'autenticació per al login.
  *
@@ -675,10 +691,10 @@ interface AuthApiService {
      * - Marca l'exemplar com "lliure" automàticament
      *
      * @param prestecId ID del préstec a retornar
-     * @return Missatge de confirmació
+     * @return Response amb el missatge de confirmació
      * @throws retrofit2.HttpException si el préstec no existeix (404)
      */
     @PUT("biblioteca/prestecs/ferDevolucio/{prestecId}")
-    suspend fun retornarPrestec(@Path("prestecId") prestecId: Long?): String
+    suspend fun retornarPrestec(@Path("prestecId") prestecId: Long?): Response<okhttp3.ResponseBody>
 
 }

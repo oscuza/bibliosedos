@@ -145,10 +145,20 @@ fun AppNavigation() {
             )
         }
 
-        composable(AppScreens.EditProfileScreen.route) {
+        composable(
+            route = AppScreens.EditProfileScreen.route,
+            arguments = listOf(
+                navArgument("userId") {
+                    type = NavType.LongType
+                    defaultValue = -1L
+                }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getLong("userId") ?: -1L
             EditProfileScreen(
                 navController = navController,
-                authViewModel = authViewModel
+                authViewModel = authViewModel,
+                userId = if (userId != -1L) userId else null
             )
         }
         composable(AppScreens.ChangePasswordScreen.route) {
