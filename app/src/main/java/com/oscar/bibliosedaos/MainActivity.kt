@@ -43,7 +43,56 @@ import com.oscar.bibliosedaos.ui.viewmodels.LoanViewModel
 import kotlinx.coroutines.launch
 
 
+/**
+ * Activitat principal de l'aplicació Biblioteca Cloud.
+ * 
+ * Aquesta classe és el punt d'entrada de l'aplicació Android i gestiona el cicle de vida
+ * de l'aplicació, incloent la configuració de la interfície d'usuari amb Jetpack Compose
+ * i la navegació entre pantalles.
+ * 
+ * **Funcionalitats Principals:**
+ * - Configuració del tema de l'aplicació
+ * - Inicialització de la navegació
+ * - Gestió del logout automàtic quan l'app es tanca
+ * 
+ * **Navegació:**
+ * Utilitza Jetpack Compose Navigation per gestionar la navegació entre pantalles.
+ * La navegació es defineix a [AppNavigation] amb totes les rutes disponibles.
+ * 
+ * **Gestió de Sessió:**
+ * - Realitza logout automàtic quan l'aplicació es destrueix
+ * - Neteja el token JWT local per seguretat
+ * - Notifica al servidor del logout si és possible
+ * 
+ * @author Oscar
+ * @since 1.0
+ * @see AppNavigation
+ * @see AppScreens
+ * @see TokenManager
+ */
 class MainActivity : ComponentActivity() {
+    
+    /**
+     * Inicialitza l'activitat i configura la interfície d'usuari.
+     * 
+     * Aquest mètode s'executa quan l'activitat es crea per primera vegada.
+     * Configura el tema de l'aplicació i inicialitza la navegació principal.
+     * 
+     * **Processos Realitzats:**
+     * 1. Crida al mètode super.onCreate() per inicialització base
+     * 2. Configura el contingut amb Jetpack Compose
+     * 3. Aplica el tema de l'aplicació (BibliotecaCloudTheme)
+     * 4. Inicialitza la navegació amb [AppNavigation]
+     * 
+     * **Requeriments:**
+     * Requereix Android API level 26 (Android 8.0) o superior per utilitzar
+     * les funcionalitats de Java 8 Time API.
+     * 
+     * @param savedInstanceState Estat guardat de la instància anterior (null si és primera vegada)
+     * 
+     * @author Oscar
+     * @since 1.0
+     */
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,9 +107,35 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    
     /**
-     * Logout automàtic quan l'app es destrueix
-     * (usuari tanca l'app o el sistema el finalitza)
+     * Neteja recursos i realitza logout automàtic quan l'aplicació es destrueix.
+     * 
+     * Aquest mètode s'executa quan l'activitat es destrueix, ja sigui per:
+     * - L'usuari tanca l'aplicació
+     * - El sistema operatiu finalitza l'aplicació per manca de memòria
+     * - L'activitat es finalitza manualment
+     * 
+     * **Processos Realitzats:**
+     * 1. Crida al mètode super.onDestroy() per neteja base
+     * 2. Comprova si hi ha un token actiu
+     * 3. Si hi ha token:
+     *    - Intenta notificar al servidor del logout (opcional)
+     *    - Neteja el token local sempre (seguretat)
+     * 
+     * **Seguretat:**
+     * El token sempre s'elimina localment, encara que falli la comunicació
+     * amb el servidor. Això assegura que no quedi cap token a l'aplicació
+     * després de tancar-la.
+     * 
+     * **Nota:**
+     * El logout al servidor és opcional i no bloqueja la neteja local del token.
+     * Si hi ha problemes de connexió, el token es neteja igualment per seguretat.
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see TokenManager.hasToken
+     * @see TokenManager.clearToken
      */
     override fun onDestroy() {
         super.onDestroy()
@@ -86,12 +161,48 @@ class MainActivity : ComponentActivity() {
 
 
 
+/**
+ * Funció composable que gestiona la navegació principal de l'aplicació.
+ * 
+ * Aquesta funció configura el sistema de navegació de Jetpack Compose Navigation
+ * amb totes les pantalles disponibles a l'aplicació. Defineix les rutes i els
+ * paràmetres necessaris per cada pantalla.
+ * 
+ * **Estructura de Navegació:**
+ * - **Pantalla Inicial**: LoginScreen (si no hi ha token)
+ * - **Pantalles d'Autenticació**: LoginScreen
+ * - **Pantalles d'Administrador**: AdminHomeScreen, AddUserScreen, UserSearchScreen
+ * - **Pantalles de Perfil**: ProfileScreen (ruta: UserProfileScreen), EditProfileScreen, ChangePasswordScreen
+ * - **Pantalles de Llibres**: BooksScreen, BookManagementScreen, AddBookScreen, EditBookScreen, AddExemplarScreen
+ * - **Pantalles de Préstecs**: MyLoansScreen, UsersWithLoansScreen, LoanHistoryScreen, OverdueLoansScreen
+ * 
+ * **ViewModels Compartits:**
+ * - [AuthViewModel]: Gestió d'autenticació i usuaris
+ * - [BookViewModel]: Gestió de llibres, autors i exemplars
+ * - [LoanViewModel]: Gestió de préstecs
+ * 
+ * **Gestió de Tokens:**
+ * La navegació inicial comprova si hi ha un token actiu per decidir la pantalla
+ * de destinació inicial. Actualment sempre comença amb LoginScreen.
+ * 
+ * **Paràmetres de Ruta:**
+ * Algunes pantalles accepten paràmetres dinàmics:
+ * - `userId`: Per mostrar perfils d'usuaris específics
+ * - `bookId`: Per editar llibres específics
+ * 
+ * @author Oscar
+ * @since 1.0
+ * @see AppScreens
+ * @see AuthViewModel
+ * @see BookViewModel
+ * @see LoanViewModel
+ */
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel()
-    val hasToken = TokenManager.hasToken()
+    val asToken = TokenManager.hasToken()
     val bookViewModel: BookViewModel = viewModel()
     val loanViewModel: LoanViewModel = viewModel()
     NavHost(

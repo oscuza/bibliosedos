@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.oscar.bibliosedaos.data.models.*
 import com.oscar.bibliosedaos.data.network.ApiClient
+import com.oscar.bibliosedaos.data.network.AuthApiService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,9 +22,9 @@ import kotlinx.coroutines.launch
  * @author Oscar
  * @version 2.0 - Afegit updateExemplar per gestió de préstecs
  */
-class BookViewModel : ViewModel() {
-
-    val api = ApiClient.instance
+class BookViewModel(
+    private val api: AuthApiService = ApiClient.instance
+) : ViewModel() {
 
     // ========== ESTATS DE LLIBRES ==========
 
@@ -43,7 +44,25 @@ class BookViewModel : ViewModel() {
     // ========== OPERACIONS AMB LLIBRES ==========
 
     /**
-     * Carrega tots els llibres del sistema.
+     * Carrega tots els llibres del sistema des del backend.
+     * 
+     * Aquest mètode realitza una petició HTTP GET al servidor per obtenir
+     * la llista completa de llibres registrats a la biblioteca.
+     * 
+     * **Estat de Càrrega:**
+     * - Abans de la petició: `isLoading = true`
+     * - Després de l'èxit: `isLoading = false`, `llibres = [llista de llibres]`
+     * - Després de l'error: `isLoading = false`, `error = [missatge d'error]`
+     * 
+     * **Errors Possibles:**
+     * - Error de xarxa: Problemes de connexió amb el servidor
+     * - Error 401/403: Token JWT invàlid o expirat
+     * - Error 500: Error intern del servidor
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see LlibresUiState
+     * @see AuthApiService.getAllLlibres
      */
     fun loadLlibres() {
         viewModelScope.launch {
@@ -64,7 +83,31 @@ class BookViewModel : ViewModel() {
     }
 
     /**
-     * Crea un nou llibre.
+     * Crea un nou llibre al sistema.
+     * 
+     * Aquest mètode realitza una petició HTTP PUT al servidor per afegir
+     * un nou llibre a la base de dades de la biblioteca.
+     * 
+     * **Validacions del Backend:**
+     * - ISBN ha de ser únic
+     * - Tots els camps obligatoris han d'estar omplerts
+     * - Només administradors poden crear llibres
+     * 
+     * **Estat de Creació:**
+     * - Abans de la petició: `isCreating = true`
+     * - Després de l'èxit: `isCreating = false`, llibre afegit a la llista
+     * - Després de l'error: `isCreating = false`, `error = [missatge d'error]`
+     * 
+     * **Actualització de l'Estat:**
+     * El nou llibre s'afegeix automàticament a la llista local després
+     * de la creació exitosa per mantenir la sincronització amb el servidor.
+     * 
+     * @param llibre Objecte [Llibre] amb les dades del nou llibre a crear
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see Llibre
+     * @see AuthApiService.addLlibre
      */
     fun createLlibre(llibre: Llibre) {
         viewModelScope.launch {
@@ -86,7 +129,32 @@ class BookViewModel : ViewModel() {
     }
 
     /**
-     * Actualitza un llibre existent.
+     * Actualitza les dades d'un llibre existent al sistema.
+     * 
+     * Aquest mètode realitza una petició HTTP PUT al servidor per modificar
+     * les dades d'un llibre que ja existeix a la base de dades.
+     * 
+     * **Validacions:**
+     * - El llibre amb l'ID proporcionat ha d'existir
+     * - Només administradors poden actualitzar llibres
+     * - L'ISBN pot ser modificat sempre que sigui únic
+     * 
+     * **Estat d'Actualització:**
+     * - Abans de la petició: `isUpdating = id`
+     * - Després de l'èxit: `isUpdating = null`, llibre actualitzat a la llista
+     * - Després de l'error: `isUpdating = null`, `error = [missatge d'error]`
+     * 
+     * **Actualització de l'Estat:**
+     * El llibre a la llista local s'actualitza automàticament amb les
+     * dades retornades pel servidor després de l'actualització exitosa.
+     * 
+     * @param id Identificador únic del llibre a actualitzar
+     * @param llibre Objecte [Llibre] amb les dades actualitzades
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see Llibre
+     * @see AuthApiService.updateLlibre
      */
     fun updateLlibre(id: Long, llibre: Llibre) {
         viewModelScope.launch {
@@ -110,7 +178,31 @@ class BookViewModel : ViewModel() {
     }
 
     /**
-     * Elimina un llibre.
+     * Elimina un llibre del sistema de forma permanent.
+     * 
+     * Aquest mètode realitza una petició HTTP DELETE al servidor per
+     * eliminar un llibre de la base de dades de la biblioteca.
+     * 
+     * **Advertències:**
+     * - L'operació és irreversible
+     * - Només administradors poden eliminar llibres
+     * - El llibre s'elimina de la llista local després de l'èxit
+     * 
+     * **Estat d'Eliminació:**
+     * - Abans de la petició: `isDeleting = id`
+     * - Després de l'èxit: `isDeleting = null`, llibre eliminat de la llista
+     * - Després de l'error: `isDeleting = null`, `error = [missatge d'error]`
+     * 
+     * **Errors Possibles:**
+     * - Error 404: El llibre no existeix
+     * - Error 403: No tens permisos d'administrador
+     * - Error 409: El llibre té exemplars associats que impedeixen l'eliminació
+     * 
+     * @param id Identificador únic del llibre a eliminar
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see AuthApiService.deleteLlibre
      */
     fun deleteLlibre(id: Long) {
         viewModelScope.launch {
@@ -134,7 +226,25 @@ class BookViewModel : ViewModel() {
     // ========== OPERACIONS AMB AUTORS ==========
 
     /**
-     * Carrega tots els autors del sistema.
+     * Carrega tots els autors del sistema des del backend.
+     * 
+     * Aquest mètode realitza una petició HTTP GET al servidor per obtenir
+     * la llista completa d'autors registrats a la biblioteca, ordenats
+     * alfabèticament per nom.
+     * 
+     * **Estat de Càrrega:**
+     * - Abans de la petició: `isLoading = true`
+     * - Després de l'èxit: `isLoading = false`, `autors = [llista d'autors]`
+     * - Després de l'error: `isLoading = false`, `error = [missatge d'error]`
+     * 
+     * **Ordre de Resultats:**
+     * Els autors es retornen ordenats alfabèticament pel seu nom de forma
+     * ascendent (A-Z).
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see AutorsUiState
+     * @see AuthApiService.getAllAutors
      */
     fun loadAutors() {
         viewModelScope.launch {
@@ -155,7 +265,31 @@ class BookViewModel : ViewModel() {
     }
 
     /**
-     * Crea un nou autor.
+     * Crea un nou autor al sistema.
+     * 
+     * Aquest mètode realitza una petició HTTP PUT al servidor per afegir
+     * un nou autor a la base de dades de la biblioteca.
+     * 
+     * **Validacions del Backend:**
+     * - El nom de l'autor ha de ser únic
+     * - El nom no pot estar buit
+     * - Només administradors poden crear autors
+     * 
+     * **Estat de Creació:**
+     * - Abans de la petició: `isCreating = true`
+     * - Després de l'èxit: `isCreating = false`, autor afegit a la llista
+     * - Després de l'error: `isCreating = false`, `error = [missatge d'error]`
+     * 
+     * **Actualització de l'Estat:**
+     * El nou autor s'afegeix automàticament a la llista local després
+     * de la creació exitosa.
+     * 
+     * @param nom Nom complet de l'autor a crear
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see Autor
+     * @see AuthApiService.addAutor
      */
     fun createAutor(nom: String) {
         viewModelScope.launch {
@@ -178,7 +312,32 @@ class BookViewModel : ViewModel() {
     }
 
     /**
-     * Elimina un autor.
+     * Elimina un autor del sistema de forma permanent.
+     * 
+     * Aquest mètode realitza una petició HTTP DELETE al servidor per
+     * eliminar un autor de la base de dades de la biblioteca.
+     * 
+     * **Advertències:**
+     * - L'operació és irreversible
+     * - Només administradors poden eliminar autors
+     * - Si l'autor té llibres associats, pot produir un error o eliminar
+     *   també els llibres (depèn de la configuració del backend)
+     * 
+     * **Estat d'Eliminació:**
+     * - Abans de la petició: `isDeleting = id`
+     * - Després de l'èxit: `isDeleting = null`, autor eliminat de la llista
+     * - Després de l'error: `isDeleting = null`, `error = [missatge d'error]`
+     * 
+     * **Errors Possibles:**
+     * - Error 404: L'autor no existeix
+     * - Error 403: No tens permisos d'administrador
+     * - Error 409: L'autor té llibres associats
+     * 
+     * @param id Identificador únic de l'autor a eliminar
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see AuthApiService.deleteAutor
      */
     fun deleteAutor(id: Long) {
         viewModelScope.launch {
@@ -202,7 +361,25 @@ class BookViewModel : ViewModel() {
     // ========== OPERACIONS AMB EXEMPLARS ==========
 
     /**
-     * Carrega tots els exemplars del sistema.
+     * Carrega tots els exemplars del sistema des del backend.
+     * 
+     * Aquest mètode realitza una petició HTTP GET al servidor per obtenir
+     * la llista completa d'exemplars físics registrats a la biblioteca.
+     * 
+     * **Estat de Càrrega:**
+     * - Abans de la petició: `isLoading = true`
+     * - Després de l'èxit: `isLoading = false`, `exemplars = [llista d'exemplars]`
+     * - Després de l'error: `isLoading = false`, `error = [missatge d'error]`
+     * 
+     * **Informació Inclosa:**
+     * Cada exemplar inclou la seva ubicació física, estat de disponibilitat
+     * i la informació completa del llibre associat.
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see ExemplarsUiState
+     * @see Exemplar
+     * @see AuthApiService.getAllExemplars
      */
     fun loadExemplars() {
         viewModelScope.launch {
@@ -223,7 +400,38 @@ class BookViewModel : ViewModel() {
     }
 
     /**
-     * Cerca exemplars lliures per títol o autor.
+     * Cerca exemplars disponibles (lliures) filtrant per títol del llibre o nom de l'autor.
+     * 
+     * Aquest mètode realitza una petició HTTP GET al servidor per obtenir
+     * exemplars que estan disponibles per préstec ("reservat" == "lliure")
+     * i que coincideixen amb els criteris de cerca proporcionats.
+     * 
+     * **Criteris de Cerca:**
+     * - Si s'especifica `titol`: Busca exemplars de llibres que continguin el títol
+     * - Si s'especifica `autor`: Busca exemplars de llibres escrits per l'autor
+     * - Si ambdós són null: Retorna tots els exemplars disponibles
+     * - La cerca és case-insensitive (no distingeix majúscules/minúscules)
+     * - La cerca és parcial (coincidències parcials)
+     * 
+     * **Estat de Cerca:**
+     * - Abans de la petició: `isSearching = true`
+     * - Després de l'èxit: `isSearching = false`, `searchResults = [resultats]`
+     * - Després de l'error: `isSearching = false`, `error = [missatge d'error]`
+     * 
+     * **Resultats:**
+     * Els resultats s'emmagatzemen a `searchResults` i no modifiquen la
+     * llista principal d'exemplars. Utilitza [clearSearchResults] per netejar
+     * els resultats de cerca.
+     * 
+     * @param titol Títol del llibre a cercar (opcional, pot ser null)
+     * @param autor Nom de l'autor a cercar (opcional, pot ser null)
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see Exemplar
+     * @see ExemplarsUiState.searchResults
+     * @see clearSearchResults
+     * @see AuthApiService.getExemplarsLliures
      */
     fun searchExemplarsLliures(titol: String?, autor: String?) {
         viewModelScope.launch {
@@ -244,7 +452,32 @@ class BookViewModel : ViewModel() {
     }
 
     /**
-     * Crea un nou exemplar.
+     * Crea un nou exemplar físic d'un llibre al sistema.
+     * 
+     * Aquest mètode realitza una petició HTTP PUT al servidor per afegir
+     * un nou exemplar físic a la biblioteca.
+     * 
+     * **Validacions:**
+     * - L'exemplar ha d'estar associat a un llibre existent
+     * - La ubicació (lloc) ha d'estar especificada
+     * - Només administradors poden crear exemplars
+     * - Per defecte, l'exemplar es crea amb estat "lliure"
+     * 
+     * **Estat de Creació:**
+     * - Abans de la petició: `isCreating = true`
+     * - Després de l'èxit: `isCreating = false`, exemplar afegit a la llista
+     * - Després de l'error: `isCreating = false`, `error = [missatge d'error]`
+     * 
+     * **Ús Comú:**
+     * S'utilitza quan s'afegeixen nous exemplars físics d'un llibre ja
+     * existent a la biblioteca (ex: compra de més còpies).
+     * 
+     * @param exemplar Objecte [Exemplar] amb les dades del nou exemplar a crear
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see Exemplar
+     * @see AuthApiService.addExemplar
      */
     fun createExemplar(exemplar: Exemplar) {
         viewModelScope.launch {
@@ -266,11 +499,39 @@ class BookViewModel : ViewModel() {
     }
 
     /**
-     * NOU: Actualitza un exemplar (principalment per canviar l'estat).
-     * Aquest mètode és clau per la gestió de préstecs.
-     *
-     * @param id Identificador de l'exemplar
-     * @param exemplar Exemplar amb les dades actualitzades
+     * Actualitza les dades d'un exemplar existent al sistema.
+     * 
+     * Aquest mètode és clau per la gestió de préstecs, ja que permet
+     * modificar l'estat de disponibilitat d'un exemplar (ex: de "lliure"
+     * a "prestat" quan es presta un llibre).
+     * 
+     * **Ús Principal:**
+     * - Canviar l'estat d'un exemplar (lliure → prestat → lliure)
+     * - Actualitzar la ubicació física de l'exemplar
+     * - Gestionar reserves d'exemplars
+     * 
+     * **Estat d'Actualització:**
+     * - Abans de la petició: `isUpdating = id`
+     * - Després de l'èxit: `isUpdating = null`, exemplar actualitzat a la llista
+     * - Després de l'error: `isUpdating = null`, `error = [missatge d'error]`
+     * 
+     * **Validacions:**
+     * - L'exemplar amb l'ID proporcionat ha d'existir
+     * - L'estat ha de ser vàlid: "lliure", "prestat", o "reservat"
+     * 
+     * **Errors Possibles:**
+     * - Error 404: L'exemplar no existeix
+     * - Error 400: Dades invàlides
+     * - Error 403: No tens permisos
+     * 
+     * @param id Identificador únic de l'exemplar a actualitzar
+     * @param exemplar Objecte [Exemplar] amb les dades actualitzades
+     * 
+     * @author Oscar
+     * @since 2.0
+     * @see Exemplar
+     * @see ExemplarsUiState
+     * @see AuthApiService.updateExemplar
      */
     fun updateExemplar(id: Long, exemplar: Exemplar) {
         viewModelScope.launch {
@@ -318,8 +579,34 @@ class BookViewModel : ViewModel() {
     }
 
     /**
-     * LEGACY: Actualitza l'estat d'un exemplar (mètode antic, mantingut per compatibilitat).
-     * Es recomana utilitzar updateExemplar() directament.
+     * Actualitza només l'estat d'un exemplar (mètode de conveniència).
+     * 
+     * Aquest mètode és una abstracció sobre [updateExemplar] que permet
+     * canviar només l'estat de disponibilitat d'un exemplar sense necessitat
+     * de passar tot l'objecte Exemplar.
+     * 
+     * **Ús Recomanat:**
+     * Utilitza aquest mètode quan només necessites canviar l'estat de
+     * l'exemplar (ex: marcar com "prestat" o "lliure"). Per a canvis més
+     * complexos, utilitza [updateExemplar] directament.
+     * 
+     * **Estats Vàlids:**
+     * - "lliure": Exemplar disponible per préstec
+     * - "prestat": Exemplar actualment prestat a un usuari
+     * - "reservat": Exemplar reservat per un usuari
+     * 
+     * **Processos:**
+     * 1. Busca l'exemplar a la llista local per ID
+     * 2. Crea una còpia amb l'estat actualitzat
+     * 3. Crida a [updateExemplar] amb l'exemplar actualitzat
+     * 
+     * @param id Identificador únic de l'exemplar a actualitzar
+     * @param newStatus Nou estat de disponibilitat ("lliure", "prestat", "reservat")
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see updateExemplar
+     * @see Exemplar.reservat
      */
     fun updateExemplarStatus(id: Long, newStatus: String) {
         viewModelScope.launch {
@@ -338,7 +625,31 @@ class BookViewModel : ViewModel() {
     }
 
     /**
-     * Elimina un exemplar.
+     * Elimina un exemplar del sistema de forma permanent.
+     * 
+     * Aquest mètode realitza una petició HTTP DELETE al servidor per
+     * eliminar un exemplar físic de la base de dades de la biblioteca.
+     * 
+     * **Advertències:**
+     * - L'operació és irreversible
+     * - Només administradors poden eliminar exemplars
+     * - No es pot eliminar un exemplar que està actualment prestat
+     * 
+     * **Estat d'Eliminació:**
+     * - Abans de la petició: `isDeleting = id`
+     * - Després de l'èxit: `isDeleting = null`, exemplar eliminat de la llista
+     * - Després de l'error: `isDeleting = null`, `error = [missatge d'error]`
+     * 
+     * **Errors Possibles:**
+     * - Error 404: L'exemplar no existeix
+     * - Error 403: No tens permisos d'administrador
+     * - Error 400: L'exemplar està prestat i no es pot eliminar
+     * 
+     * @param id Identificador únic de l'exemplar a eliminar
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see AuthApiService.deleteExemplar
      */
     fun deleteExemplar(id: Long) {
         viewModelScope.launch {
@@ -372,6 +683,22 @@ class BookViewModel : ViewModel() {
 
     /**
      * Neteja els resultats de cerca d'exemplars.
+     * 
+     * Aquest mètode elimina els resultats de cerca emmagatzemats a
+     * [ExemplarsUiState.searchResults], deixant la propietat a `null`.
+     * 
+     * **Ús:**
+     * Utilitza aquest mètode després de mostrar els resultats de cerca
+     * o quan vols netejar la pantalla de cerca per iniciar una nova cerca.
+     * 
+     * **Efecte:**
+     * - `searchResults = null` després de la crida
+     * - No afecta la llista principal d'exemplars
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see ExemplarsUiState.searchResults
+     * @see searchExemplarsLliures
      */
     fun clearSearchResults() {
         _exemplarsState.value = _exemplarsState.value.copy(searchResults = null)
@@ -380,7 +707,23 @@ class BookViewModel : ViewModel() {
     // ========== FUNCIONS D'UTILITAT ==========
 
     /**
-     * Neteja tots els errors.
+     * Neteja tots els missatges d'error de tots els estats.
+     * 
+     * Aquest mètode elimina els missatges d'error de les tres categories:
+     * - Errors de llibres ([LlibresUiState.error])
+     * - Errors d'autors ([AutorsUiState.error])
+     * - Errors d'exemplars ([ExemplarsUiState.error])
+     * 
+     * **Ús:**
+     * Utilitza aquest mètode quan l'usuari hagi vist l'error i vulguis
+     * netejar-lo de la interfície, o després de realitzar una acció
+     * exitosa que hagi resolt l'error anterior.
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see LlibresUiState.error
+     * @see AutorsUiState.error
+     * @see ExemplarsUiState.error
      */
     fun clearErrors() {
         _llibresState.value = _llibresState.value.copy(error = null)
@@ -389,7 +732,31 @@ class BookViewModel : ViewModel() {
     }
 
     /**
-     * Recarrega totes les dades.
+     * Recarrega totes les dades del sistema.
+     * 
+     * Aquest mètode realitza una recàrrega completa de totes les dades
+     * del sistema: llibres, autors i exemplars. Utilitza les dades
+     * més actualitzades del servidor.
+     * 
+     * **Processos:**
+     * 1. Carrega tots els llibres ([loadLlibres])
+     * 2. Carrega tots els autors ([loadAutors])
+     * 3. Carrega tots els exemplars ([loadExemplars])
+     * 
+     * **Ús:**
+     * Utilitza aquest mètode després de realitzar operacions que modifiquin
+     * les dades del servidor per assegurar que la UI estigui sincronitzada
+     * amb l'estat real del backend.
+     * 
+     * **Nota:**
+     * Aquestes crides es realitzen en paral·lel, però cada una gestiona
+     * el seu propi estat de càrrega i errors de forma independent.
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see loadLlibres
+     * @see loadAutors
+     * @see loadExemplars
      */
     fun refreshAll() {
         loadLlibres()
@@ -398,35 +765,140 @@ class BookViewModel : ViewModel() {
     }
 
     /**
-     * Obté un llibre per ID.
+     * Busca un llibre a la llista local per el seu identificador.
+     * 
+     * Aquest mètode busca el llibre a la llista emmagatzemada localment
+     * sense fer una petició al servidor. Si el llibre no està a la llista
+     * local, retorna `null`.
+     * 
+     * **Ús:**
+     * Utilitza aquest mètode quan necessitis accedir a les dades d'un
+     * llibre que ja ha estat carregat prèviament.
+     * 
+     * **Nota:**
+     * Si el llibre no està a la llista local, pot ser que no hagi estat
+     * carregat encara. En aquest cas, considera cridar [loadLlibres] abans.
+     * 
+     * @param id Identificador únic del llibre a buscar
+     * @return L'objecte [Llibre] si es troba, `null` si no existeix a la llista local
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see Llibre
+     * @see loadLlibres
      */
     fun getLlibreById(id: Long): Llibre? {
         return _llibresState.value.llibres.find { it.id == id }
     }
 
     /**
-     * Obté un autor per ID.
+     * Busca un autor a la llista local per el seu identificador.
+     * 
+     * Aquest mètode busca l'autor a la llista emmagatzemada localment
+     * sense fer una petició al servidor. Si l'autor no està a la llista
+     * local, retorna `null`.
+     * 
+     * **Ús:**
+     * Utilitza aquest mètode quan necessitis accedir a les dades d'un
+     * autor que ja ha estat carregat prèviament.
+     * 
+     * **Nota:**
+     * Si l'autor no està a la llista local, pot ser que no hagi estat
+     * carregat encara. En aquest cas, considera cridar [loadAutors] abans.
+     * 
+     * @param id Identificador únic de l'autor a buscar
+     * @return L'objecte [Autor] si es troba, `null` si no existeix a la llista local
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see Autor
+     * @see loadAutors
      */
     fun getAutorById(id: Long): Autor? {
         return _autorsState.value.autors.find { it.id == id }
     }
 
     /**
-     * Obté un exemplar per ID.
+     * Busca un exemplar a la llista local per el seu identificador.
+     * 
+     * Aquest mètode busca l'exemplar a la llista emmagatzemada localment
+     * sense fer una petició al servidor. Si l'exemplar no està a la llista
+     * local, retorna `null`.
+     * 
+     * **Ús:**
+     * Utilitza aquest mètode quan necessitis accedir a les dades d'un
+     * exemplar que ja ha estat carregat prèviament.
+     * 
+     * **Nota:**
+     * Si l'exemplar no està a la llista local, pot ser que no hagi estat
+     * carregat encara. En aquest cas, considera cridar [loadExemplars] abans.
+     * 
+     * @param id Identificador únic de l'exemplar a buscar
+     * @return L'objecte [Exemplar] si es troba, `null` si no existeix a la llista local
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see Exemplar
+     * @see loadExemplars
      */
     fun getExemplarById(id: Long): Exemplar? {
         return _exemplarsState.value.exemplars.find { it.id == id }
     }
 
     /**
-     * Comprova si un llibre té exemplars.
+     * Comprova si un llibre té exemplars físics associats.
+     * 
+     * Aquest mètode verifica si existeix almenys un exemplar físic
+     * associat al llibre especificat a la llista local d'exemplars.
+     * 
+     * **Ús:**
+     * Utilitza aquest mètode per determinar si un llibre té còpies
+     * físiques disponibles a la biblioteca abans de permetre certes
+     * operacions (ex: eliminar el llibre).
+     * 
+     * **Nota:**
+     * Aquesta comprovació es basa en les dades locals. Per assegurar
+     * que les dades estan actualitzades, crida [loadExemplars] abans.
+     * 
+     * @param llibreId Identificador únic del llibre a comprovar
+     * @return `true` si el llibre té almenys un exemplar, `false` altrament
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see Exemplar
+     * @see getExemplarsByLlibre
      */
     fun llibreHasExemplars(llibreId: Long): Boolean {
         return _exemplarsState.value.exemplars.any { it.llibre?.id == llibreId }
     }
 
     /**
-     * Obté el nombre d'exemplars lliures d'un llibre.
+     * Obté el nombre d'exemplars disponibles (lliures) d'un llibre.
+     * 
+     * Aquest mètode compta quants exemplars físics d'un llibre estan
+     * actualment disponibles per préstec (estat "lliure").
+     * 
+     * **Ús:**
+     * Utilitza aquest mètode per mostrar a la UI quantes còpies d'un
+     * llibre estan disponibles per préstec.
+     * 
+     * **Exemple:**
+     * ```kotlin
+     * val disponibles = viewModel.getExemplarsLliuresCount(llibreId)
+     * Text("$disponibles exemplars disponibles")
+     * ```
+     * 
+     * **Nota:**
+     * Aquest recompte es basa en les dades locals. Per assegurar precisió,
+     * crida [loadExemplars] abans d'utilitzar aquest mètode.
+     * 
+     * @param llibreId Identificador únic del llibre
+     * @return Nombre d'exemplars disponibles (estat "lliure")
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see Exemplar.reservat
+     * @see getExemplarsByLlibre
      */
     fun getExemplarsLliuresCount(llibreId: Long): Int {
         return _exemplarsState.value.exemplars.count {
@@ -435,7 +907,31 @@ class BookViewModel : ViewModel() {
     }
 
     /**
-     * Obté tots els exemplars d'un llibre.
+     * Obté tots els exemplars físics associats a un llibre.
+     * 
+     * Aquest mètode retorna una llista amb tots els exemplars físics
+     * que estan associats al llibre especificat, independentment del
+     * seu estat de disponibilitat.
+     * 
+     * **Ús:**
+     * Utilitza aquest mètode quan necessitis mostrar o processar tots
+     * els exemplars d'un llibre (disponibles, prestats, reservats).
+     * 
+     * **Informació Inclosa:**
+     * Cada exemplar inclou:
+     * - Identificador únic
+     * - Ubicació física a la biblioteca
+     * - Estat de disponibilitat
+     * - Informació completa del llibre associat
+     * 
+     * @param llibreId Identificador únic del llibre
+     * @return Llista d'[Exemplar] associats al llibre (pot estar buida)
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see Exemplar
+     * @see getExemplarsLliuresCount
+     * @see llibreHasExemplars
      */
     fun getExemplarsByLlibre(llibreId: Long): List<Exemplar> {
         return _exemplarsState.value.exemplars.filter { it.llibre?.id == llibreId }

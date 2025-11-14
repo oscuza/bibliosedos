@@ -50,7 +50,7 @@ object ApiClient {
      * - Exemple: `http://192.168.1.100:8080/`
      *
      * **Nota de Seguretat:**
-     * En producció, sempre utilitzar HTTPS en lloc de HTTP.
+     * En TEA 4 utilitzar HTTPS en lloc de HTTP.
      */
     private const val BASE_URL = "http://10.0.2.2:8080/"
 
@@ -69,8 +69,6 @@ object ApiClient {
      * - HEADERS: BASIC + capçaleres
      * - BODY: HEADERS + cossos complets
      *
-     * **Nota:**
-     * En producció, considerar canviar a BASIC o NONE per rendiment.
      */
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
@@ -115,12 +113,6 @@ object ApiClient {
      * - Només es crea una instància durant tota l'execució de l'app
      * - No es crea fins que realment es necessita
      * - És thread-safe (segur per múltiples threads)
-     *
-     * **Ús:**
-     * ```kotlin
-     * val api = ApiClient.instance
-     * val users = api.getAllUsers()
-     * ```
      *
      * @return Instància singleton d'[AuthApiService] configurada amb Retrofit
      */

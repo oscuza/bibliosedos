@@ -35,33 +35,30 @@ import retrofit2.Response
  *   ↓
  * AuthViewModel.loadAllUsers()
  *   ↓
- * userListState.isLoading = true
+ * allUsersState.isLoading = true
  *   ↓
  * AuthApiService.getAllUsers()
  *   ↓
  * Si èxit:
- *   userListState.users = llista
- *   userListState.isLoading = false
- *   userListState.error = null
+ *   allUsersState.users = llista
+ *   allUsersState.isLoading = false
+ *   allUsersState.error = null
  *
  * Si error:
- *   userListState.users = emptyList
- *   userListState.isLoading = false
- *   userListState.error = missatge
+ *   allUsersState.users = emptyList
+ *   allUsersState.isLoading = false
+ *   allUsersState.error = missatge
  * ```
  *
- * **Estats del UserListState:**
+ * **Estats del UsersUiState:**
  * - isLoading: Boolean (indicador de càrrega)
  * - users: List<User> (llista d'usuaris)
  * - error: String? (missatge d'error si falla)
  *
- * **Nota d'ÚS D'IA:**
- * - Eina: Claude 3.5 Sonnet (Anthropic)
- *
  * @author Oscar
  * @since 1.0
  * @see AuthViewModel.loadAllUsers
- * @see UserListState
+ * @see UsersUiState
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class LoadAllUsersTest {
@@ -102,10 +99,31 @@ class LoadAllUsersTest {
 
         override suspend fun login(request: AuthenticationRequest): AuthResponse = error("no utilitzat")
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
+        override suspend fun getUserByNif(nif: String): Response<User> = error("no utilitzat")
         override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun createUser(request: CreateUserRequest): AuthResponse = error("no utilitzat")
         override suspend fun logout(): Response<String> = error("no utilitzat")
+        
+        // Mètodes de llibres, autors, exemplars i préstecs (no utilitzats en aquests tests)
+        override suspend fun getAllLlibres(): List<com.oscar.bibliosedaos.data.models.Llibre> = error("no utilitzat")
+        override suspend fun addLlibre(llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun updateLlibre(id: Long, llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun deleteLlibre(id: Long): String = error("no utilitzat")
+        override suspend fun getLlibreById(id: Long): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun getAllAutors(): List<com.oscar.bibliosedaos.data.models.Autor> = error("no utilitzat")
+        override suspend fun addAutor(autor: com.oscar.bibliosedaos.data.models.Autor): com.oscar.bibliosedaos.data.models.Autor = error("no utilitzat")
+        override suspend fun deleteAutor(id: Long): String = error("no utilitzat")
+        override suspend fun getAllExemplars(): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun getExemplarsLliures(titol: String?, autor: String?): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun addExemplar(exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun updateExemplar(id: Long, exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun deleteExemplar(id: Long): String = error("no utilitzat")
+        override suspend fun getExemplarById(id: Long): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun getPrestecsActius(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun getAllPrestecs(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun createPrestec(prestec: com.oscar.bibliosedaos.data.models.CreatePrestecRequest): com.oscar.bibliosedaos.data.models.Prestec = error("no utilitzat")
+        override suspend fun retornarPrestec(prestecId: Long?): Response<okhttp3.ResponseBody> = error("no utilitzat")
     }
 
     /**
@@ -127,10 +145,31 @@ class LoadAllUsersTest {
 
         override suspend fun login(request: AuthenticationRequest): AuthResponse = error("no utilitzat")
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
+        override suspend fun getUserByNif(nif: String): Response<User> = error("no utilitzat")
         override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun createUser(request: CreateUserRequest): AuthResponse = error("no utilitzat")
         override suspend fun logout(): Response<String> = error("no utilitzat")
+        
+        // Mètodes de llibres, autors, exemplars i préstecs (no utilitzats en aquests tests)
+        override suspend fun getAllLlibres(): List<com.oscar.bibliosedaos.data.models.Llibre> = error("no utilitzat")
+        override suspend fun addLlibre(llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun updateLlibre(id: Long, llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun deleteLlibre(id: Long): String = error("no utilitzat")
+        override suspend fun getLlibreById(id: Long): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun getAllAutors(): List<com.oscar.bibliosedaos.data.models.Autor> = error("no utilitzat")
+        override suspend fun addAutor(autor: com.oscar.bibliosedaos.data.models.Autor): com.oscar.bibliosedaos.data.models.Autor = error("no utilitzat")
+        override suspend fun deleteAutor(id: Long): String = error("no utilitzat")
+        override suspend fun getAllExemplars(): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun getExemplarsLliures(titol: String?, autor: String?): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun addExemplar(exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun updateExemplar(id: Long, exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun deleteExemplar(id: Long): String = error("no utilitzat")
+        override suspend fun getExemplarById(id: Long): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun getPrestecsActius(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun getAllPrestecs(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun createPrestec(prestec: com.oscar.bibliosedaos.data.models.CreatePrestecRequest): com.oscar.bibliosedaos.data.models.Prestec = error("no utilitzat")
+        override suspend fun retornarPrestec(prestecId: Long?): Response<okhttp3.ResponseBody> = error("no utilitzat")
     }
 
     /**
@@ -152,10 +191,31 @@ class LoadAllUsersTest {
 
         override suspend fun login(request: AuthenticationRequest): AuthResponse = error("no utilitzat")
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
+        override suspend fun getUserByNif(nif: String): Response<User> = error("no utilitzat")
         override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun createUser(request: CreateUserRequest): AuthResponse = error("no utilitzat")
         override suspend fun logout(): Response<String> = error("no utilitzat")
+        
+        // Mètodes de llibres, autors, exemplars i préstecs (no utilitzats en aquests tests)
+        override suspend fun getAllLlibres(): List<com.oscar.bibliosedaos.data.models.Llibre> = error("no utilitzat")
+        override suspend fun addLlibre(llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun updateLlibre(id: Long, llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun deleteLlibre(id: Long): String = error("no utilitzat")
+        override suspend fun getLlibreById(id: Long): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun getAllAutors(): List<com.oscar.bibliosedaos.data.models.Autor> = error("no utilitzat")
+        override suspend fun addAutor(autor: com.oscar.bibliosedaos.data.models.Autor): com.oscar.bibliosedaos.data.models.Autor = error("no utilitzat")
+        override suspend fun deleteAutor(id: Long): String = error("no utilitzat")
+        override suspend fun getAllExemplars(): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun getExemplarsLliures(titol: String?, autor: String?): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun addExemplar(exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun updateExemplar(id: Long, exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun deleteExemplar(id: Long): String = error("no utilitzat")
+        override suspend fun getExemplarById(id: Long): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun getPrestecsActius(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun getAllPrestecs(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun createPrestec(prestec: com.oscar.bibliosedaos.data.models.CreatePrestecRequest): com.oscar.bibliosedaos.data.models.Prestec = error("no utilitzat")
+        override suspend fun retornarPrestec(prestecId: Long?): Response<okhttp3.ResponseBody> = error("no utilitzat")
     }
 
     // ========== TESTS ==========
@@ -190,7 +250,7 @@ class LoadAllUsersTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         // ASSERT: Verificar estat
-        val state = vm.userListState.value
+        val state = vm.allUsersState.value
 
         assertFalse("isLoading hauria de ser false", state.isLoading)
         assertEquals("Hauria d'haver 3 usuaris", 3, state.users.size)
@@ -234,7 +294,7 @@ class LoadAllUsersTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         // ASSERT: Verificar llista buida sense errors
-        val state = vm.userListState.value
+        val state = vm.allUsersState.value
 
         assertFalse("isLoading hauria de ser false", state.isLoading)
         assertTrue("La llista hauria d'estar buida", state.users.isEmpty())
@@ -274,7 +334,7 @@ class LoadAllUsersTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         // ASSERT: Verificar gestió d'error
-        val state = vm.userListState.value
+        val state = vm.allUsersState.value
 
         assertFalse("isLoading hauria de ser false", state.isLoading)
         assertTrue("La llista hauria d'estar buida", state.users.isEmpty())

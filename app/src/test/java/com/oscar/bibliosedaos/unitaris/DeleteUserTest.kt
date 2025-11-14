@@ -12,6 +12,9 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
+import retrofit2.HttpException
 import retrofit2.Response
 
 /**
@@ -47,9 +50,6 @@ import retrofit2.Response
  * 4. Backend valida permisos
  * 5. Si èxit → Elimina de BD + recarrega llista
  * 6. Si error → Mostra missatge d'error
- *
- * **Nota d'ÚS D'IA:**
- * - Eina: Claude 3.5 Sonnet (Anthropic)
  *
  * @author Oscar
  * @since 1.0
@@ -92,9 +92,30 @@ class DeleteUserTest {
 
         override suspend fun login(request: AuthenticationRequest): AuthResponse = error("no utilitzat")
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
+        override suspend fun getUserByNif(nif: String): Response<User> = error("no utilitzat")
         override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
         override suspend fun createUser(request: CreateUserRequest): AuthResponse = error("no utilitzat")
         override suspend fun logout(): Response<String> = error("no utilitzat")
+        
+        // Mètodes de llibres, autors, exemplars i préstecs (no utilitzats en aquests tests)
+        override suspend fun getAllLlibres(): List<com.oscar.bibliosedaos.data.models.Llibre> = error("no utilitzat")
+        override suspend fun addLlibre(llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun updateLlibre(id: Long, llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun deleteLlibre(id: Long): String = error("no utilitzat")
+        override suspend fun getLlibreById(id: Long): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun getAllAutors(): List<com.oscar.bibliosedaos.data.models.Autor> = error("no utilitzat")
+        override suspend fun addAutor(autor: com.oscar.bibliosedaos.data.models.Autor): com.oscar.bibliosedaos.data.models.Autor = error("no utilitzat")
+        override suspend fun deleteAutor(id: Long): String = error("no utilitzat")
+        override suspend fun getAllExemplars(): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun getExemplarsLliures(titol: String?, autor: String?): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun addExemplar(exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun updateExemplar(id: Long, exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun deleteExemplar(id: Long): String = error("no utilitzat")
+        override suspend fun getExemplarById(id: Long): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun getPrestecsActius(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun getAllPrestecs(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun createPrestec(prestec: com.oscar.bibliosedaos.data.models.CreatePrestecRequest): com.oscar.bibliosedaos.data.models.Prestec = error("no utilitzat")
+        override suspend fun retornarPrestec(prestecId: Long?): Response<okhttp3.ResponseBody> = error("no utilitzat")
     }
 
     /**
@@ -119,15 +140,40 @@ class DeleteUserTest {
      */
     private class FakeAuthApiError : AuthApiService {
         override suspend fun deleteUser(userId: Long): Response<Unit> {
-            return Response.error(403, okhttp3.ResponseBody.create(null, "Forbidden"))
+            return Response.error(
+                403,
+                "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"No tens permisos per eliminar aquest usuari\"}"
+                    .toResponseBody("application/json".toMediaType())
+            )
         }
 
         override suspend fun login(request: AuthenticationRequest): AuthResponse = error("no utilitzat")
         override suspend fun getAllUsers(): List<User> = error("no utilitzat")
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
+        override suspend fun getUserByNif(nif: String): Response<User> = error("no utilitzat")
         override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
         override suspend fun createUser(request: CreateUserRequest): AuthResponse = error("no utilitzat")
         override suspend fun logout(): Response<String> = error("no utilitzat")
+        
+        // Mètodes de llibres, autors, exemplars i préstecs (no utilitzats en aquests tests)
+        override suspend fun getAllLlibres(): List<com.oscar.bibliosedaos.data.models.Llibre> = error("no utilitzat")
+        override suspend fun addLlibre(llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun updateLlibre(id: Long, llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun deleteLlibre(id: Long): String = error("no utilitzat")
+        override suspend fun getLlibreById(id: Long): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun getAllAutors(): List<com.oscar.bibliosedaos.data.models.Autor> = error("no utilitzat")
+        override suspend fun addAutor(autor: com.oscar.bibliosedaos.data.models.Autor): com.oscar.bibliosedaos.data.models.Autor = error("no utilitzat")
+        override suspend fun deleteAutor(id: Long): String = error("no utilitzat")
+        override suspend fun getAllExemplars(): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun getExemplarsLliures(titol: String?, autor: String?): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun addExemplar(exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun updateExemplar(id: Long, exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun deleteExemplar(id: Long): String = error("no utilitzat")
+        override suspend fun getExemplarById(id: Long): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun getPrestecsActius(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun getAllPrestecs(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun createPrestec(prestec: com.oscar.bibliosedaos.data.models.CreatePrestecRequest): com.oscar.bibliosedaos.data.models.Prestec = error("no utilitzat")
+        override suspend fun retornarPrestec(prestecId: Long?): Response<okhttp3.ResponseBody> = error("no utilitzat")
     }
 
     // ========== TESTS ==========
@@ -161,23 +207,17 @@ class DeleteUserTest {
     fun eliminarUsuari_exit_retornaExit() = runTest {
         // ARRANGE
         val vm = AuthViewModel(api = FakeAuthApiSuccess())
-        var result: Pair<Boolean, String>? = null
 
         // ACT: Eliminar usuari
-        vm.deleteUser(100) { success, message ->
-            result = Pair(success, message)
-        }
+        vm.deleteUser(100)
 
         dispatcher.scheduler.advanceUntilIdle()
 
         // ASSERT: Verificar èxit
-        assertNotNull("El callback hauria de retornar resultat", result)
-        assertTrue("L'eliminació hauria de ser exitosa", result!!.first)
-        assertTrue(
-            "El missatge hauria de confirmar l'eliminació",
-            result!!.second.contains("eliminado correctamente") ||
-                    result!!.second.contains("eliminat correctament")
-        )
+        val state = vm.deleteUserState.value
+        assertTrue("L'eliminació hauria de ser exitosa", state.success)
+        assertEquals("L'ID eliminat hauria de ser 100", 100L, state.deletedUserId)
+        assertNull("No hauria de tenir errors", state.error)
     }
 
     /**
@@ -206,25 +246,26 @@ class DeleteUserTest {
     fun eliminarUsuari_error403_retornaError() = runTest {
         // ARRANGE
         val vm = AuthViewModel(api = FakeAuthApiError())
-        var result: Pair<Boolean, String>? = null
 
         // ACT: Intentar eliminar (serà denegat)
-        vm.deleteUser(100) { success, message ->
-            result = Pair(success, message)
-        }
+        vm.deleteUser(100)
 
         dispatcher.scheduler.advanceUntilIdle()
 
         // ASSERT: Verificar error
-        assertNotNull("El callback hauria de retornar resultat", result)
-        assertFalse("L'eliminació NO hauria de ser exitosa", result!!.first)
+        val state = vm.deleteUserState.value
+        assertFalse("L'eliminació NO hauria de ser exitosa", state.success)
+        assertNotNull("Hauria de tenir un error", state.error)
         assertTrue(
-            "El missatge hauria de mencionar l'error. Missatge rebut: '${result!!.second}'",
-            result!!.second.contains("Error al eliminar") ||
-                    result!!.second.contains("Error en eliminar") ||
-                    result!!.second.contains("No pots eliminar-te a tu mateix") ||
-                    result!!.second.contains("No puedes eliminarte a ti mismo") ||
-                    result!!.second.contains("403")
+            "El missatge hauria de mencionar l'error. Missatge rebut: '${state.error}'",
+            state.error?.contains("Error al eliminar", ignoreCase = true) == true ||
+                    state.error?.contains("Error en eliminar", ignoreCase = true) == true ||
+                    state.error?.contains("Error eliminant usuari", ignoreCase = true) == true ||
+                    state.error?.contains("No pots eliminar-te a tu mateix", ignoreCase = true) == true ||
+                    state.error?.contains("No puedes eliminarte a ti mismo", ignoreCase = true) == true ||
+                    state.error?.contains("403") == true ||
+                    state.error?.contains("Forbidden", ignoreCase = true) == true ||
+                    state.error?.contains("permisos", ignoreCase = true) == true
         )
     }
 }

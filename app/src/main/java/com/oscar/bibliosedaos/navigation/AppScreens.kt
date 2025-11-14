@@ -156,8 +156,9 @@ sealed class AppScreens(val route: String) {
      * Pantalla de perfil d'usuari (amb paràmetre dinàmic).
      *
      * **Descripció:**
-     * Pantalla versàtil que mostra el perfil d'un usuari i s'adapta
+     * Pantalla unificada que mostra el perfil d'un usuari i s'adapta
      * dinàmicament segons el rol i si és el perfil propi o d'un altre usuari.
+     * Utilitza [ProfileScreen] per la implementació completa.
      *
      * **Modes d'Ús:**
      * 1. **Perfil Propi (Usuari):**
@@ -174,7 +175,7 @@ sealed class AppScreens(val route: String) {
      * 3. **Perfil d'Altre Usuari (Admin):**
      *    - Visualització de dades de l'usuari
      *    - Botó "Volver" per tornar a la llista
-     *    - Opcions d'edició (futur)
+     *    - Opcions d'edició i gestió d'usuari
      *
      * **Detecció Automàtica:**
      * La pantalla detecta automàticament si l'usuari està veient el seu
@@ -183,9 +184,12 @@ sealed class AppScreens(val route: String) {
      * **Paràmetres de Ruta:**
      * - `userId`: Identificador Long de l'usuari a mostrar
      *
+     * **Implementació:**
+     * Utilitza [ProfileScreen] per la implementació completa i unificada.
      *
      * @author Oscar
      * @since 1.0
+     * @see ProfileScreen
      */
     object UserProfileScreen : AppScreens("user_profile_screen/{userId}") {
         /**

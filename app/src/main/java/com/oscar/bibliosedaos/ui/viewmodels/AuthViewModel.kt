@@ -25,9 +25,9 @@ import java.io.IOException
  * @author Oscar
  * @version 2.0 - Afegida gestió d'usuaris per préstecs
  */
-class AuthViewModel : ViewModel() {
-
-    private val api = ApiClient.instance
+class AuthViewModel(
+    private val api: AuthApiService = ApiClient.instance
+) : ViewModel() {
 
     // ==================== ESTATS DE LOGIN ====================
 
@@ -72,7 +72,43 @@ class AuthViewModel : ViewModel() {
     // ==================== FUNCIONS DE LOGIN ====================
 
     /**
-     * Realitza el login de l'usuari.
+     * Realitza l'autenticació de l'usuari al sistema.
+     * 
+     * Aquest mètode realitza una petició HTTP POST al servidor per autenticar
+     * l'usuari amb les credencials proporcionades (nick i password).
+     * 
+     * **Processos Realitzats:**
+     * 1. Envia les credencials al servidor
+     * 2. Si l'autenticació és exitosa:
+     *    - Guarda el token JWT a [TokenManager]
+     *    - Guarda les dades de l'usuari actual
+     *    - Actualitza l'estat de login
+     * 3. Si l'autenticació falla:
+     *    - Actualitza l'estat amb un missatge d'error
+     * 
+     * **Estat de Login:**
+     * - Abans de la petició: `isLoading = true`
+     * - Després de l'èxit: `isLoading = false`, `loginSuccess = true`, `authResponse = [resposta]`
+     * - Després de l'error: `isLoading = false`, `error = [missatge d'error]`
+     * 
+     * **Errors Possibles:**
+     * - Error 401: Credencials incorrectes
+     * - Error 404: L'usuari no existeix
+     * - Error de xarxa: Problemes de connexió amb el servidor
+     * 
+     * **Seguretat:**
+     * El token JWT s'emmagatzema automàticament a [TokenManager] després
+     * d'un login exitós. Aquest token s'utilitzarà per a totes les peticions
+     * HTTP posteriors mitjançant [AuthInterceptor].
+     * 
+     * @param nick Nom d'usuari (nickname) per autenticar
+     * @param password Contrasenya de l'usuari
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see LoginUiState
+     * @see TokenManager.saveToken
+     * @see AuthApiService.login
      */
     fun login(nick: String, password: String) {
         viewModelScope.launch {
@@ -110,7 +146,35 @@ class AuthViewModel : ViewModel() {
     }
 
     /**
-     * Realitza el logout de l'usuari.
+     * Tanca la sessió de l'usuari al sistema.
+     * 
+     * Aquest mètode realitza una petició HTTP POST al servidor per tancar
+     * la sessió i elimina el token JWT de la memòria local.
+     * 
+     * **Processos Realitzats:**
+     * 1. Intenta notificar al servidor del logout (opcional)
+     * 2. Neteja el token JWT de [TokenManager] (sempre)
+     * 3. Elimina les dades de l'usuari actual
+     * 4. Restableix l'estat de login
+     * 
+     * **Seguretat:**
+     * El token sempre s'elimina localment, encara que falli la comunicació
+     * amb el servidor. Això assegura que la sessió es tanqui completament
+     * en el client.
+     * 
+     * **Nota:**
+     * El logout al servidor és opcional i no bloqueja la neteja local del token.
+     * Si hi ha problemes de connexió, el token es neteja igualment per seguretat.
+     * 
+     * **Efectes:**
+     * - [TokenManager.clearToken]: Elimina el token JWT
+     * - `_currentUser = null`: Elimina les dades de l'usuari actual
+     * - `_loginUiState = LoginUiState()`: Restableix l'estat de login
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see TokenManager.clearToken
+     * @see AuthApiService.logout
      */
     fun logout() {
         viewModelScope.launch {
@@ -129,7 +193,36 @@ class AuthViewModel : ViewModel() {
     // ==================== FUNCIONS DE PERFIL ====================
 
     /**
-     * Carrega el perfil d'un usuari.
+     * Carrega el perfil d'un usuari des del backend.
+     * 
+     * Aquest mètode realitza una petició HTTP GET al servidor per obtenir
+     * les dades completes d'un usuari específic.
+     * 
+     * **Ús:**
+     * - Veure el perfil propi
+     * - Veure el perfil d'altres usuaris (administradors)
+     * - Carregar dades d'usuari per editar
+     * 
+     * **Estat de Càrrega:**
+     * - Abans de la petició: `isLoading = true`
+     * - Després de l'èxit: `isLoading = false`, `user = [dades de l'usuari]`
+     * - Després de l'error: `isLoading = false`, `error = [missatge d'error]`
+     * 
+     * **Permisos:**
+     * - Usuari normal: Pot carregar només el seu propi perfil
+     * - Administrador: Pot carregar el perfil de qualsevol usuari
+     * 
+     * **Errors Possibles:**
+     * - Error 404: L'usuari no existeix
+     * - Error 403: No tens permisos per veure aquest perfil
+     * - Error de xarxa: Problemes de connexió amb el servidor
+     * 
+     * @param userId Identificador únic de l'usuari del qual carregar el perfil
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see UserProfileUiState
+     * @see AuthApiService.getUserById
      */
     fun loadUserProfile(userId: Long) {
         viewModelScope.launch {
@@ -254,9 +347,33 @@ class AuthViewModel : ViewModel() {
     // ==================== NOU: FUNCIONS DE GESTIÓ D'USUARIS PER PRÉSTECS ====================
 
     /**
-     * Carrega tots els usuaris del sistema.
-     * Només accessible per administradors.
-     * Utilitzat per seleccionar usuari en préstecs.
+     * Carrega tots els usuaris del sistema des del backend.
+     * 
+     * Aquest mètode realitza una petició HTTP GET al servidor per obtenir
+     * la llista completa d'usuaris registrats al sistema.
+     * 
+     * **Ús:**
+     * - Llistar tots els usuaris (pantalla d'administració)
+     * - Seleccionar un usuari per crear préstecs
+     * - Gestió d'usuaris per administradors
+     * 
+     * **Estat de Càrrega:**
+     * - Abans de la petició: `isLoading = true`
+     * - Després de l'èxit: `isLoading = false`, `users = [llista d'usuaris]`
+     * - Després de l'error: `isLoading = false`, `error = [missatge d'error]`
+     * 
+     * **Permisos:**
+     * - Només administradors poden carregar tots els usuaris
+     * - Els usuaris normals no tenen accés a aquesta funcionalitat
+     * 
+     * **Errors Possibles:**
+     * - Error 403: No tens permisos d'administrador
+     * - Error de xarxa: Problemes de connexió amb el servidor
+     * 
+     * @author Oscar
+     * @since 2.0
+     * @see UsersUiState
+     * @see AuthApiService.getAllUsers
      */
     fun loadAllUsers() {
         viewModelScope.launch {
@@ -457,13 +574,18 @@ class AuthViewModel : ViewModel() {
             _deleteUserState.value = DeleteUserUiState(isDeleting = true)
             
             try {
-                api.deleteUser(userId)
-                // Recarregar llista d'usuaris
-                loadAllUsers()
-                _deleteUserState.value = DeleteUserUiState(
-                    success = true,
-                    deletedUserId = userId
-                )
+                val response = api.deleteUser(userId)
+                if (response.isSuccessful) {
+                    // Recarregar llista d'usuaris
+                    loadAllUsers()
+                    _deleteUserState.value = DeleteUserUiState(
+                        success = true,
+                        deletedUserId = userId
+                    )
+                } else {
+                    // Si la resposta no és exitosa, llançar HttpException per gestionar l'error
+                    throw retrofit2.HttpException(response)
+                }
             } catch (e: Exception) {
                 val errorMessage = handleHttpError(e, "Error eliminant usuari")
                 _deleteUserState.value = DeleteUserUiState(

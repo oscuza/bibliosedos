@@ -6,11 +6,9 @@ package com.oscar.bibliosedaos.data.network
  * Aquesta classe singleton proporciona una gestió simple i eficient del token
  * d'autenticació JWT utilitzat per les peticions HTTP.
  *
- * **Característiques:**
- * - ✅ Thread-safe (object singleton de Kotlin)
- * - ✅ Accés centralitzat des de qualsevol part de l'app
- * - ✅ API simple i clara
- * - ❌ **SENSEs persistència:** El token es perd en tancar l'app
+ * Thread-safe (object singleton de Kotlin)
+ *
+ ***SENSE persistència:** El token es perd en tancar l'app
  *
  * **Funcionament:**
  * ```
@@ -30,36 +28,10 @@ package com.oscar.bibliosedaos.data.network
  *         │
  *         ▼
  *     [Token eliminat de RAM]
- * ```
- *
- * **Seguretat:**
+
  * - El token només existeix en RAM (no es guarda en disc)
  * - Es perd automàticament en tancar l'aplicació
  * - Logout automàtic en cada reinici de l'app
- *
- * **Alternativa amb Persistència:**
- * Per mantenir la sessió després de tancar l'app, considerar:
- * - DataStore (recomanat per Jetpack)
- * - SharedPreferences (manera clàssica)
- * - Encrypted SharedPreferences (més segur)
- *
- * **Exemple d'Ús:**
- * ```kotlin
- * // Després del login
- * TokenManager.saveToken(authResponse.token)
- *
- * // Comprovar si hi ha sessió activa
- * if (TokenManager.hasToken()) {
- *     // Usuario autenticado
- *     navigateToHome()
- * } else {
- *     // Usuario sin autenticar
- *     navigateToLogin()
- * }
- *
- * // Durant el logout
- * TokenManager.clearToken()
- * ```
  *
  * @property currentToken Token JWT actual, null si no hi ha sessió activa
  *
@@ -93,13 +65,6 @@ object TokenManager {
      * - Després d'un login exitós
      * - Després de refrescar el token (si implementat)
      *
-     * **Exemple:**
-     * ```kotlin
-     * // En el ViewModel després del login
-     * val response = api.login(request)
-     * TokenManager.saveToken(response.token)
-     * ```
-     *
      * @param token Token JWT rebut del servidor (format: "eyJhbGciOiJIUzI1...")
      *
      * @author Oscar
@@ -121,17 +86,6 @@ object TokenManager {
      * - Per obtenir el token per peticions manuals
      * - Internament per [AuthInterceptor]
      *
-     * **Exemple:**
-     * ```kotlin
-     * val token = TokenManager.getToken()
-     * if (token != null) {
-     *     // Hay sesión activa
-     *     makeAuthenticatedRequest()
-     * } else {
-     *     // No hay sesión
-     *     redirectToLogin()
-     * }
-     * ```
      *
      * @return Token JWT actual o null si no existeix
      *
@@ -159,7 +113,6 @@ object TokenManager {
      * - [getToken] retornarà null
      *
      * **Exemple:**
-     * ```kotlin
      * // Logout manual
      * fun logout() {
      *     TokenManager.clearToken()
@@ -171,7 +124,6 @@ object TokenManager {
      *     TokenManager.clearToken()
      *     showLoginScreen()
      * }
-     * ```
      *
      * @author Oscar
      * @since 1.0

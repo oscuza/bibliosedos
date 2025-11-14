@@ -52,9 +52,6 @@ import retrofit2.Response
  * 6. Si èxit → Actualitza userProfileState + mostra success
  * 7. Si error → Mostra error sense modificar estat
  *
- * **Nota d'ÚS D'IA:**
- * - Eina: Claude 3.5 Sonnet (Anthropic)
- *
  * @author Oscar
  * @since 1.0
  * @see AuthViewModel.updateUserProfile
@@ -129,11 +126,32 @@ class UpdateUserProfileTest {
             error("no utilitzat")
 
         override suspend fun getAllUsers(): List<User> = error("no utilitzat")
+        override suspend fun getUserByNif(nif: String): Response<User> = error("no utilitzat")
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun createUser(request: CreateUserRequest): AuthResponse =
             error("no utilitzat")
 
         override suspend fun logout(): Response<String> = error("no utilitzat")
+        
+        // Mètodes de llibres, autors, exemplars i préstecs (no utilitzats en aquests tests)
+        override suspend fun getAllLlibres(): List<com.oscar.bibliosedaos.data.models.Llibre> = error("no utilitzat")
+        override suspend fun addLlibre(llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun updateLlibre(id: Long, llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun deleteLlibre(id: Long): String = error("no utilitzat")
+        override suspend fun getLlibreById(id: Long): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun getAllAutors(): List<com.oscar.bibliosedaos.data.models.Autor> = error("no utilitzat")
+        override suspend fun addAutor(autor: com.oscar.bibliosedaos.data.models.Autor): com.oscar.bibliosedaos.data.models.Autor = error("no utilitzat")
+        override suspend fun deleteAutor(id: Long): String = error("no utilitzat")
+        override suspend fun getAllExemplars(): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun getExemplarsLliures(titol: String?, autor: String?): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun addExemplar(exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun updateExemplar(id: Long, exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun deleteExemplar(id: Long): String = error("no utilitzat")
+        override suspend fun getExemplarById(id: Long): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun getPrestecsActius(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun getAllPrestecs(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun createPrestec(prestec: com.oscar.bibliosedaos.data.models.CreatePrestecRequest): com.oscar.bibliosedaos.data.models.Prestec = error("no utilitzat")
+        override suspend fun retornarPrestec(prestecId: Long?): Response<okhttp3.ResponseBody> = error("no utilitzat")
     }
 
     /**
@@ -182,11 +200,32 @@ class UpdateUserProfileTest {
             error("no utilitzat")
 
         override suspend fun getAllUsers(): List<User> = error("no utilitzat")
+        override suspend fun getUserByNif(nif: String): Response<User> = error("no utilitzat")
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun createUser(request: CreateUserRequest): AuthResponse =
             error("no utilitzat")
 
         override suspend fun logout(): Response<String> = error("no utilitzat")
+        
+        // Mètodes de llibres, autors, exemplars i préstecs (no utilitzats en aquests tests)
+        override suspend fun getAllLlibres(): List<com.oscar.bibliosedaos.data.models.Llibre> = error("no utilitzat")
+        override suspend fun addLlibre(llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun updateLlibre(id: Long, llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun deleteLlibre(id: Long): String = error("no utilitzat")
+        override suspend fun getLlibreById(id: Long): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun getAllAutors(): List<com.oscar.bibliosedaos.data.models.Autor> = error("no utilitzat")
+        override suspend fun addAutor(autor: com.oscar.bibliosedaos.data.models.Autor): com.oscar.bibliosedaos.data.models.Autor = error("no utilitzat")
+        override suspend fun deleteAutor(id: Long): String = error("no utilitzat")
+        override suspend fun getAllExemplars(): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun getExemplarsLliures(titol: String?, autor: String?): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun addExemplar(exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun updateExemplar(id: Long, exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun deleteExemplar(id: Long): String = error("no utilitzat")
+        override suspend fun getExemplarById(id: Long): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun getPrestecsActius(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun getAllPrestecs(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun createPrestec(prestec: com.oscar.bibliosedaos.data.models.CreatePrestecRequest): com.oscar.bibliosedaos.data.models.Prestec = error("no utilitzat")
+        override suspend fun retornarPrestec(prestecId: Long?): Response<okhttp3.ResponseBody> = error("no utilitzat")
     }
 
     // ========== TESTS ==========
@@ -223,32 +262,31 @@ class UpdateUserProfileTest {
     fun actualitzarPerfil_exit_retornaPerfilActualitzat() = runTest {
         // ARRANGE
         val vm = AuthViewModel(api = FakeAuthApiSuccess())
-        var result: Pair<Boolean, String>? = null
 
-        val updatedUser = User(
-            id = 42,
+        // ACT: Actualitzar perfil
+        vm.updateUserProfile(
+            userId = 42,
             nick = "usuario_actualizado",
             nom = "Nombre Nuevo",
             cognom1 = "Apellido1",
             cognom2 = "Apellido2",
-            rol = 1
+            nif = null,
+            email = null,
+            tlf = null,
+            carrer = null,
+            localitat = null,
+            cp = null,
+            provincia = null
         )
-
-        // ACT: Actualitzar perfil
-        vm.updateUserProfile(42, updatedUser) { success, message ->
-            result = Pair(success, message)
-        }
 
         dispatcher.scheduler.advanceUntilIdle()
 
         // ASSERT: Verificar èxit
-        assertNotNull("El callback hauria de retornar resultat", result)
-        assertTrue("L'actualització hauria de ser exitosa", result!!.first)
-        assertTrue(
-            "El missatge hauria de confirmar l'actualització",
-            result!!.second.contains("actualizado correctamente") ||
-                    result!!.second.contains("actualitzat correctament")
-        )
+        val state = vm.updateUserState.value
+        assertTrue("L'actualització hauria de ser exitosa", state.success)
+        assertNotNull("Hauria de tenir un usuari actualitzat", state.updatedUser)
+        assertEquals("El nick hauria d'estar actualitzat", "usuario_actualizado", state.updatedUser?.nick)
+        assertEquals("El nom hauria d'estar actualitzat", "Nombre Nuevo", state.updatedUser?.nom)
     }
 
     /**
@@ -281,30 +319,32 @@ class UpdateUserProfileTest {
     fun actualitzarPerfil_nickDuplicat_retornaError() = runTest {
         // ARRANGE
         val vm = AuthViewModel(api = FakeAuthApiDuplicateNick())
-        var result: Pair<Boolean, String>? = null
 
-        val updatedUser = User(
-            id = 42,
+        // ACT: Intentar actualitzar amb nick duplicat
+        vm.updateUserProfile(
+            userId = 42,
             nick = "admin",  // Nick ja usat per un altre usuari
             nom = "Test",
             cognom1 = "User",
             cognom2 = null,
-            rol = 1
+            nif = null,
+            email = null,
+            tlf = null,
+            carrer = null,
+            localitat = null,
+            cp = null,
+            provincia = null
         )
-
-        // ACT: Intentar actualitzar amb nick duplicat
-        vm.updateUserProfile(42, updatedUser) { success, message ->
-            result = Pair(success, message)
-        }
 
         dispatcher.scheduler.advanceUntilIdle()
 
         // ASSERT: Verificar error
-        assertNotNull("El callback hauria de retornar resultat", result)
-        assertFalse("L'actualització NO hauria de ser exitosa", result!!.first)
+        val state = vm.updateUserState.value
+        assertFalse("L'actualització NO hauria de ser exitosa", state.success)
+        assertNotNull("Hauria de tenir un error", state.error)
         assertTrue(
-            "Hauria d'haver un missatge d'error. Missatge rebut: '${result!!.second}'",
-            result!!.second.isNotEmpty()  // Només verificar que hi ha un missatge
+            "Hauria d'haver un missatge d'error. Missatge rebut: '${state.error}'",
+            state.error?.isNotEmpty() == true
         )
     }
 
@@ -337,37 +377,42 @@ class UpdateUserProfileTest {
         // ARRANGE
         val vm = AuthViewModel(api = FakeAuthApiSuccess())
 
-        val updatedUser = User(
-            id = 42,
+        // ACT: Actualitzar perfil
+        vm.updateUserProfile(
+            userId = 42,
             nick = "usuario_actualizado",
             nom = "Nombre Nuevo",
             cognom1 = "Apellido1",
             cognom2 = null,
-            rol = 1
+            nif = null,
+            email = null,
+            tlf = null,
+            carrer = null,
+            localitat = null,
+            cp = null,
+            provincia = null,
+            updateCurrentUser = true  // Per actualitzar també userProfileState
         )
-
-        // ACT: Actualitzar perfil
-        vm.updateUserProfile(42, updatedUser) { _, _ -> }
         dispatcher.scheduler.advanceUntilIdle()
 
         // ASSERT: Verificar estat del ViewModel
-        val profileState = vm.userProfileState.value
-
-        assertNotNull("userProfileState hauria de tenir un User", profileState.user)
+        val updateState = vm.updateUserState.value
+        assertTrue("L'actualització hauria de ser exitosa", updateState.success)
+        assertNotNull("updateUserState hauria de tenir un User actualitzat", updateState.updatedUser)
         assertEquals(
             "El nick hauria d'estar actualitzat",
             "usuario_actualizado",
-            profileState.user?.nick
+            updateState.updatedUser?.nick
         )
         assertEquals(
             "El nombre hauria d'estar actualitzat",
             "Nombre Nuevo",
-            profileState.user?.nom
+            updateState.updatedUser?.nom
         )
         assertEquals(
             "L'apellido1 hauria d'estar actualitzat",
             "Apellido1",
-            profileState.user?.cognom1
+            updateState.updatedUser?.cognom1
         )
     }
 }

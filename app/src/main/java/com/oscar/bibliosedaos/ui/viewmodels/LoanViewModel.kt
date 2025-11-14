@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.oscar.bibliosedaos.data.models.*
 import com.oscar.bibliosedaos.data.network.ApiClient
+import com.oscar.bibliosedaos.data.network.AuthApiService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,14 +40,25 @@ import java.time.format.DateTimeFormatter
  * @see Prestec
  * @see CreatePrestecRequest
  */
-class LoanViewModel : ViewModel() {
-
-    val api = ApiClient.instance
+class LoanViewModel(
+    private val api: AuthApiService = ApiClient.instance
+) : ViewModel() {
 
     // ========== ESTATS DELS PRÉSTECS ACTIUS ==========
 
     /**
-     * Estat de la llista de préstecs actius.
+     * Estat reactiu de la llista de préstecs actius.
+     * 
+     * Aquest StateFlow conté la informació sobre els préstecs que encara
+     * no han estat retornats (dataDevolucio == null).
+     * 
+     * **Contingut:**
+     * - Llista de préstecs actius
+     * - Estat de càrrega
+     * - Missatges d'error
+     * 
+     * @see LoansUiState
+     * @see loadActiveLoans
      */
     private val _activeLoansState = MutableStateFlow(LoansUiState())
     val activeLoansState: StateFlow<LoansUiState> = _activeLoansState.asStateFlow()
@@ -54,7 +66,18 @@ class LoanViewModel : ViewModel() {
     // ========== ESTATS DE L'HISTORIAL ==========
 
     /**
-     * Estat de l'historial complet de préstecs.
+     * Estat reactiu de l'historial complet de préstecs.
+     * 
+     * Aquest StateFlow conté la informació sobre tots els préstecs,
+     * tant actius com retornats (historial complet).
+     * 
+     * **Contingut:**
+     * - Llista completa de préstecs
+     * - Estat de càrrega
+     * - Missatges d'error
+     * 
+     * @see LoansUiState
+     * @see loadLoanHistory
      */
     private val _loanHistoryState = MutableStateFlow(LoansUiState())
     val loanHistoryState: StateFlow<LoansUiState> = _loanHistoryState.asStateFlow()
@@ -62,7 +85,18 @@ class LoanViewModel : ViewModel() {
     // ========== ESTAT DE CREACIÓ DE PRÉSTEC ==========
 
     /**
-     * Estat del formulari de crear préstec.
+     * Estat reactiu del formulari de creació de préstec.
+     * 
+     * Aquest StateFlow conté la informació sobre l'operació de crear
+     * un nou préstec, incloent l'estat de submissió i els resultats.
+     * 
+     * **Contingut:**
+     * - Estat de submissió (isSubmitting)
+     * - Missatge d'èxit o error
+     * - Préstec creat (si s'ha creat correctament)
+     * 
+     * @see CreateLoanState
+     * @see createLoan
      */
     val _createLoanState = MutableStateFlow(CreateLoanState())
     val createLoanState: StateFlow<CreateLoanState> = _createLoanState.asStateFlow()
@@ -70,7 +104,18 @@ class LoanViewModel : ViewModel() {
     // ========== ESTAT DE DEVOLUCIÓ ==========
 
     /**
-     * Estat de l'operació de devolució.
+     * Estat reactiu de l'operació de devolució de préstec.
+     * 
+     * Aquest StateFlow conté la informació sobre l'operació de retornar
+     * un préstec, incloent l'estat de l'operació i els resultats.
+     * 
+     * **Contingut:**
+     * - ID del préstec que s'està retornant (isReturning)
+     * - Missatge d'èxit o error
+     * - ID del préstec retornat (si s'ha retornat correctament)
+     * 
+     * @see ReturnLoanState
+     * @see returnLoan
      */
     private val _returnLoanState = MutableStateFlow(ReturnLoanState())
     val returnLoanState: StateFlow<ReturnLoanState> = _returnLoanState.asStateFlow()
@@ -78,13 +123,35 @@ class LoanViewModel : ViewModel() {
     // ========== OPERACIONS AMB PRÉSTECS ACTIUS ==========
 
     /**
-     * Carrega la llista de préstecs actius d'un usuari.
-     *
+     * Carrega la llista de préstecs actius des del backend.
+     * 
+     * Aquest mètode realitza una petició HTTP GET al servidor per obtenir
+     * els préstecs que encara no han estat retornats (dataDevolucio == null).
+     * 
      * **Comportament:**
-     * - Si usuariId és null, carrega tots els préstecs actius (només admin)
-     * - Si usuariId és proporcionat, carrega només els préstecs d'aquell usuari
-     *
-     * @param usuariId ID de l'usuari (opcional)
+     * - Si `usuariId` és `null`: Carrega tots els préstecs actius del sistema (només admin)
+     * - Si `usuariId` és proporcionat: Carrega només els préstecs actius d'aquell usuari
+     * 
+     * **Estat de Càrrega:**
+     * - Abans de la petició: `isLoading = true`
+     * - Després de l'èxit: `isLoading = false`, `loans = [llista de préstecs actius]`
+     * - Després de l'error: `isLoading = false`, `error = [missatge d'error]`
+     * 
+     * **Permisos:**
+     * - Usuari normal: Pot carregar només els seus propis préstecs (ha de passar el seu ID)
+     * - Administrador: Pot carregar tots els préstecs o els d'un usuari específic
+     * 
+     * **Errors Possibles:**
+     * - Error 401/403: Token JWT invàlid o sense permisos
+     * - Error 404: L'usuari no existeix (si s'especifica usuariId)
+     * - Error de xarxa: Problemes de connexió amb el servidor
+     * 
+     * @param usuariId ID de l'usuari del qual carregar els préstecs (opcional, null per tots)
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see LoansUiState
+     * @see AuthApiService.getPrestecsActius
      */
     fun loadActiveLoans(usuariId: Long? = null) {
         viewModelScope.launch {
@@ -107,13 +174,41 @@ class LoanViewModel : ViewModel() {
     // ========== OPERACIONS AMB HISTORIAL ==========
 
     /**
-     * Carrega l'historial complet de préstecs d'un usuari.
-     *
+     * Carrega l'historial complet de préstecs des del backend.
+     * 
+     * Aquest mètode realitza una petició HTTP GET al servidor per obtenir
+     * tots els préstecs (tant actius com retornats) d'un usuari o del sistema.
+     * 
      * **Comportament:**
-     * - Inclou tant préstecs actius com retornats
-     * - Si usuariId és null, carrega tots els préstecs (només admin)
-     *
-     * @param usuariId ID de l'usuari (opcional)
+     * - Inclou tant préstecs actius (dataDevolucio == null) com retornats (dataDevolucio != null)
+     * - Si `usuariId` és `null`: Carrega tots els préstecs del sistema (només admin)
+     * - Si `usuariId` és proporcionat: Carrega només l'historial d'aquell usuari
+     * 
+     * **Estat de Càrrega:**
+     * - Abans de la petició: `isLoading = true`
+     * - Després de l'èxit: `isLoading = false`, `loans = [llista completa de préstecs]`
+     * - Després de l'error: `isLoading = false`, `error = [missatge d'error]`
+     * 
+     * **Permisos:**
+     * - Usuari normal: Pot carregar només el seu propi historial (ha de passar el seu ID)
+     * - Administrador: Pot carregar l'historial complet o el d'un usuari específic
+     * 
+     * **Ús:**
+     * Utilitza aquest mètode per mostrar l'historial complet de préstecs,
+     * incloent els que ja han estat retornats.
+     * 
+     * **Errors Possibles:**
+     * - Error 401/403: Token JWT invàlid o sense permisos
+     * - Error 404: L'usuari no existeix (si s'especifica usuariId)
+     * - Error de xarxa: Problemes de connexió amb el servidor
+     * 
+     * @param usuariId ID de l'usuari del qual carregar l'historial (opcional, null per tots)
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see LoansUiState
+     * @see loadActiveLoans
+     * @see AuthApiService.getAllPrestecs
      */
     fun loadLoanHistory(usuariId: Long? = null) {
         viewModelScope.launch {
@@ -136,20 +231,45 @@ class LoanViewModel : ViewModel() {
     // ========== OPERACIONS DE CREACIÓ ==========
 
     /**
-     * Crea un nou préstec de llibre.
-     *
-     * **Validacions:**
+     * Crea un nou préstec de llibre al sistema.
+     * 
+     * Aquest mètode realitza una petició HTTP POST al servidor per crear
+     * un nou préstec d'un exemplar a un usuari.
+     * 
+     * **Validacions del Backend:**
      * - L'exemplar ha d'estar disponible (estat "lliure")
-     * - L'usuari ha d'existir
+     * - L'usuari ha d'existir al sistema
      * - Només administradors poden crear préstecs
-     *
-     * **Accions automàtiques del backend:**
-     * - Marca l'exemplar com "prestat"
-     * - Assigna dataPrestec a avui si no s'especifica
-     *
+     * 
+     * **Accions Automàtiques del Backend:**
+     * - Marca l'exemplar com "prestat" (estat "prestat")
+     * - Assigna `dataPrestec` a la data actual si no s'especifica
+     * - Crea el registre del préstec a la base de dades
+     * 
+     * **Estat de Creació:**
+     * - Abans de la petició: `isSubmitting = true`
+     * - Després de l'èxit: `isSubmitting = false`, `success = true`, `createdLoan = [préstec creat]`
+     * - Després de l'error: `isSubmitting = false`, `error = [missatge d'error]`
+     * 
+     * **Errors Possibles:**
+     * - Error 400: L'exemplar ja està prestat o dades invàlides
+     * - Error 404: L'exemplar o l'usuari no existeix
+     * - Error 403: No tens permisos d'administrador
+     * - Error de xarxa: Problemes de connexió amb el servidor
+     * 
+     * **Format de Data:**
+     * La data ha d'estar en format ISO 8601: "yyyy-MM-dd" (ex: "2024-01-15").
+     * Si no s'especifica, s'utilitza la data actual.
+     * 
      * @param usuariId ID de l'usuari que farà el préstec
-     * @param exemplarId ID de l'exemplar a prestar
-     * @param dataPrestec Data del préstec (opcional, per defecte avui)
+     * @param exemplarId ID de l'exemplar físic a prestar
+     * @param dataPrestec Data del préstec en format "yyyy-MM-dd" (opcional, per defecte data actual)
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see CreateLoanState
+     * @see CreatePrestecRequest
+     * @see AuthApiService.createPrestec
      */
     @RequiresApi(Build.VERSION_CODES.O)
     fun createLoan(
@@ -200,17 +320,44 @@ class LoanViewModel : ViewModel() {
     // ========== OPERACIONS DE DEVOLUCIÓ ==========
 
     /**
-     * Marca un préstec com a retornat.
-     *
-     * **Accions automàtiques del backend:**
-     * - Actualitza dataDevolucio amb la data actual
-     * - Marca l'exemplar com "lliure"
-     *
+     * Marca un préstec com a retornat al sistema.
+     * 
+     * Aquest mètode realitza una petició HTTP PUT al servidor per marcar
+     * un préstec com retornat i alliberar l'exemplar associat.
+     * 
+     * **Accions Automàtiques del Backend:**
+     * - Actualitza `dataDevolucio` amb la data actual
+     * - Marca l'exemplar associat com "lliure" (disponible per préstec)
+     * - Registra la devolució a la base de dades
+     * 
      * **Permisos:**
-     * - Administrador: pot retornar qualsevol préstec
-     * - Usuari: només pot retornar els seus propis préstecs
-     *
-     * @param prestecId ID del préstec a retornar
+     * - **Administrador**: Pot retornar qualsevol préstec del sistema
+     * - **Usuari Normal**: Només pot retornar els seus propis préstecs actius
+     * 
+     * **Estat de Devolució:**
+     * - Abans de la petició: `isReturning = prestecId`
+     * - Després de l'èxit: `isReturning = null`, `success = true`, `returnedLoanId = prestecId`
+     * - Després de l'error: `isReturning = null`, `error = [missatge d'error]`
+     * 
+     * **Errors Possibles:**
+     * - Error 404: El préstec no existeix o ja està retornat
+     * - Error 403: No tens permisos per retornar aquest préstec
+     * - Error de xarxa: Problemes de connexió amb el servidor
+     * 
+     * **Nota Important:**
+     * Després de retornar un préstec exitosament, és recomanable recarregar
+     * la llista de préstecs per reflectir els canvis a la UI. Això no es fa
+     * automàticament perquè la pantalla pot necessitar recarregar amb un
+     * `usuariId` específic.
+     * 
+     * @param prestecId ID del préstec a retornar (no pot ser null)
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see ReturnLoanState
+     * @see loadActiveLoans
+     * @see loadLoanHistory
+     * @see AuthApiService.retornarPrestec
      */
     fun returnLoan(prestecId: Long?) {
         viewModelScope.launch {
@@ -294,7 +441,25 @@ class LoanViewModel : ViewModel() {
     // ========== UTILITATS ==========
 
     /**
-     * Neteja els missatges d'error de tots els estats.
+     * Neteja tots els missatges d'error de tots els estats del ViewModel.
+     * 
+     * Aquest mètode elimina els missatges d'error de:
+     * - Préstecs actius ([activeLoansState])
+     * - Historial de préstecs ([loanHistoryState])
+     * - Creació de préstec ([createLoanState])
+     * - Devolució de préstec ([returnLoanState])
+     * 
+     * **Ús:**
+     * Utilitza aquest mètode quan l'usuari hagi vist l'error i vulguis
+     * netejar-lo de la interfície, o després de realitzar una acció
+     * exitosa que hagi resolt l'error anterior.
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see activeLoansState
+     * @see loanHistoryState
+     * @see createLoanState
+     * @see returnLoanState
      */
     fun clearErrors() {
         _activeLoansState.value = _activeLoansState.value.copy(error = null)
@@ -304,7 +469,25 @@ class LoanViewModel : ViewModel() {
     }
 
     /**
-     * Reinicia els estats de formularis.
+     * Reinicia els estats de tots els formularis a valors inicials.
+     * 
+     * Aquest mètode restableix els estats de:
+     * - Formulari de crear préstec ([createLoanState])
+     * - Formulari de devolució ([returnLoanState])
+     * 
+     * **Ús:**
+     * Utilitza aquest mètode després de completar una operació exitosa
+     * o quan vulguis netejar els formularis per preparar-los per a una
+     * nova entrada de l'usuari.
+     * 
+     * **Efecte:**
+     * Tots els estats es restableixen a valors per defecte (buits, sense
+     * errors, sense valors de submissió, etc.).
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see CreateLoanState
+     * @see ReturnLoanState
      */
     fun resetForms() {
         _createLoanState.value = CreateLoanState()
@@ -312,18 +495,44 @@ class LoanViewModel : ViewModel() {
     }
 
     /**
-     * Recarrega préstecs actius després d'una operació.
-     *
-     * @param usuariId ID de l'usuari
+     * Recarrega la llista de préstecs actius després d'una operació.
+     * 
+     * Aquest mètode és una conveniència que crida a [loadActiveLoans]
+     * amb l'usuariId especificat. S'utilitza per refrescar la llista
+     * després d'operacions que modifiquen els préstecs (crear, retornar).
+     * 
+     * **Ús:**
+     * Utilitza aquest mètode després de crear o retornar un préstec per
+     * assegurar que la llista mostrada a la UI estigui sincronitzada amb
+     * l'estat real del servidor.
+     * 
+     * @param usuariId ID de l'usuari del qual recarregar els préstecs (opcional, null per tots)
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see loadActiveLoans
      */
     fun refreshActiveLoans(usuariId: Long? = null) {
         loadActiveLoans(usuariId)
     }
 
     /**
-     * Recarrega historial després d'una operació.
-     *
-     * @param usuariId ID de l'usuari
+     * Recarrega l'historial de préstecs després d'una operació.
+     * 
+     * Aquest mètode és una conveniència que crida a [loadLoanHistory]
+     * amb l'usuariId especificat. S'utilitza per refrescar l'historial
+     * després d'operacions que modifiquen els préstecs (crear, retornar).
+     * 
+     * **Ús:**
+     * Utilitza aquest mètode després de crear o retornar un préstec per
+     * assegurar que l'historial mostrat a la UI estigui sincronitzat amb
+     * l'estat real del servidor.
+     * 
+     * @param usuariId ID de l'usuari del qual recarregar l'historial (opcional, null per tots)
+     * 
+     * @author Oscar
+     * @since 1.0
+     * @see loadLoanHistory
      */
     fun refreshHistory(usuariId: Long? = null) {
         loadLoanHistory(usuariId)
@@ -334,10 +543,18 @@ class LoanViewModel : ViewModel() {
 
 /**
  * Estat de la UI per la llista de préstecs.
- *
- * @property loans Llista de préstecs
- * @property isLoading Si s'està carregant
- * @property error Missatge d'error (null si no n'hi ha)
+ * 
+ * Aquesta classe de dades representa l'estat actual de la llista de préstecs
+ * a la interfície d'usuari, incloent els préstecs, l'estat de càrrega i
+ * possibles errors.
+ * 
+ * @property loans Llista de préstecs (actius o historial complet)
+ * @property isLoading Indica si s'està carregant la llista des del servidor
+ * @property error Missatge d'error si n'hi ha (null si no n'hi ha errors)
+ * 
+ * @author Oscar
+ * @since 1.0
+ * @see Prestec
  */
 data class LoansUiState(
     val loans: List<Prestec> = emptyList(),
@@ -347,12 +564,21 @@ data class LoansUiState(
 
 /**
  * Estat del formulari de crear préstec.
- *
- * @property isSubmitting Si s'està enviant el formulari
- * @property success Si la creació ha estat exitosa
- * @property successMessage Missatge d'èxit
- * @property createdLoan Préstec creat
- * @property error Missatge d'error
+ * 
+ * Aquesta classe de dades representa l'estat actual del formulari de crear
+ * un nou préstec, incloent l'estat de submissió, el resultat de l'operació
+ * i possibles errors.
+ * 
+ * @property isSubmitting Indica si s'està enviant el formulari al servidor
+ * @property success Indica si la creació del préstec ha estat exitosa
+ * @property successMessage Missatge d'èxit després de crear el préstec
+ * @property createdLoan Préstec creat (null si encara no s'ha creat)
+ * @property error Missatge d'error si n'hi ha (null si no n'hi ha errors)
+ * 
+ * @author Oscar
+ * @since 1.0
+ * @see Prestec
+ * @see LoanViewModel.createLoan
  */
 data class CreateLoanState(
     val isSubmitting: Boolean = false,
@@ -363,13 +589,21 @@ data class CreateLoanState(
 )
 
 /**
- * Estat de l'operació de devolució.
- *
- * @property isReturning ID del préstec que s'està retornant (null si cap)
- * @property success Si la devolució ha estat exitosa
- * @property successMessage Missatge d'èxit
- * @property returnedLoanId ID del préstec retornat
- * @property error Missatge d'error
+ * Estat de l'operació de devolució de préstec.
+ * 
+ * Aquesta classe de dades representa l'estat actual de l'operació de retornar
+ * un préstec, incloent l'ID del préstec que s'està retornant, el resultat
+ * de l'operació i possibles errors.
+ * 
+ * @property isReturning ID del préstec que s'està retornant actualment (null si no n'hi ha cap)
+ * @property success Indica si la devolució del préstec ha estat exitosa
+ * @property successMessage Missatge d'èxit després de retornar el préstec
+ * @property returnedLoanId ID del préstec retornat (null si encara no s'ha retornat)
+ * @property error Missatge d'error si n'hi ha (null si no n'hi ha errors)
+ * 
+ * @author Oscar
+ * @since 1.0
+ * @see LoanViewModel.returnLoan
  */
 data class ReturnLoanState(
     val isReturning: Long? = null,
@@ -378,92 +612,6 @@ data class ReturnLoanState(
     val returnedLoanId: Long? = null,
     val error: String? = null
 )
-@RequiresApi(Build.VERSION_CODES.O)
-fun LoanViewModel.createLoanImproved(
-    usuariId: Long,
-    exemplarId: Long,
-    dataPrestec: String? = null,
-    onSuccess: () -> Unit = {},
-    onError: (String) -> Unit = {}
-) {
-    viewModelScope.launch {
-        _createLoanState.value = CreateLoanState(isSubmitting = true)
-
-        try {
-            // Preparar data del préstec (avui si no s'especifica)
-            val dataActual = dataPrestec ?: LocalDate.now()
-                .format(DateTimeFormatter.ISO_LOCAL_DATE)
-
-            // Crear request
-            val request = CreatePrestecRequest(
-                dataPrestec = dataActual,
-                usuari = UserIdOnly(id = usuariId),
-                exemplar = ExemplarIdOnly(id = exemplarId)
-            )
-
-            // Enviar al backend
-            val prestecCreat = api.createPrestec(request)
-
-            _createLoanState.value = CreateLoanState(
-                success = true,
-                successMessage = "Préstec creat correctament",
-                createdLoan = prestecCreat
-            )
-
-            // Callback d'èxit
-            onSuccess()
-
-        } catch (e: Exception) {
-            val errorMessage = when {
-                e.message?.contains("400") == true ->
-                    "L'exemplar ja està prestat o no està disponible"
-                e.message?.contains("404") == true ->
-                    "Exemplar o usuari no trobat"
-                e.message?.contains("403") == true ->
-                    "No tens permisos per crear préstecs"
-                e.message?.contains("409") == true ->
-                    "L'exemplar ja té un préstec actiu"
-                else ->
-                    "Error creant préstec: ${e.message}"
-            }
-
-            _createLoanState.value = CreateLoanState(
-                isSubmitting = false,
-                error = errorMessage
-            )
-
-            // Callback d'error
-            onError(errorMessage)
-        }
-    }
-}
-
-/**
- * Mètode per obtenir préstecs actius d'un exemplar específic.
- */
-fun LoanViewModel.getActiveLoanForExemplar(exemplarId: Long): Prestec? {
-    return activeLoansState.value.loans.find {
-        it.exemplar.id == exemplarId && it.isActive
-    }
-}
-
-/**
- * Mètode per comprovar si un usuari té préstecs actius.
- */
-fun LoanViewModel.userHasActiveLoans(userId: Long): Boolean {
-    return activeLoansState.value.loans.any {
-        it.usuari?.id == userId && it.isActive
-    }
-}
-
-/**
- * Mètode per obtenir el nombre de préstecs actius d'un usuari.
- */
-fun LoanViewModel.getActiveLoansCountForUser(userId: Long): Int {
-    return activeLoansState.value.loans.count {
-        it.usuari?.id == userId && it.isActive
-    }
-}
 // ========== UTILITATS COMPARTIDES ==========
 
 /**

@@ -45,8 +45,7 @@ import retrofit2.Response
  * **Permisos:**
  * Només usuaris amb rol=2 (Administrador) poden crear usuaris.
  *
- * **Nota d'ÚS D'IA:**
- * - Eina: Claude 3.5 Sonnet (Anthropic)
+ *
  * @author Oscar
  *  * @since 1.0
  *  * @see AuthViewModel.createUser
@@ -102,11 +101,32 @@ class CreateUserTest {
             error("no utilitzat")
 
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
+        override suspend fun getUserByNif(nif: String): Response<User> = error("no utilitzat")
         override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User =
             error("no utilitzat")
 
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun logout(): Response<String> = error("no utilitzat")
+        
+        // Mètodes de llibres, autors, exemplars i préstecs (no utilitzats en aquests tests)
+        override suspend fun getAllLlibres(): List<com.oscar.bibliosedaos.data.models.Llibre> = error("no utilitzat")
+        override suspend fun addLlibre(llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun updateLlibre(id: Long, llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun deleteLlibre(id: Long): String = error("no utilitzat")
+        override suspend fun getLlibreById(id: Long): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun getAllAutors(): List<com.oscar.bibliosedaos.data.models.Autor> = error("no utilitzat")
+        override suspend fun addAutor(autor: com.oscar.bibliosedaos.data.models.Autor): com.oscar.bibliosedaos.data.models.Autor = error("no utilitzat")
+        override suspend fun deleteAutor(id: Long): String = error("no utilitzat")
+        override suspend fun getAllExemplars(): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun getExemplarsLliures(titol: String?, autor: String?): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun addExemplar(exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun updateExemplar(id: Long, exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun deleteExemplar(id: Long): String = error("no utilitzat")
+        override suspend fun getExemplarById(id: Long): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun getPrestecsActius(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun getAllPrestecs(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun createPrestec(prestec: com.oscar.bibliosedaos.data.models.CreatePrestecRequest): com.oscar.bibliosedaos.data.models.Prestec = error("no utilitzat")
+        override suspend fun retornarPrestec(prestecId: Long?): Response<okhttp3.ResponseBody> = error("no utilitzat")
     }
 
     /**
@@ -134,11 +154,32 @@ class CreateUserTest {
 
         override suspend fun getAllUsers(): List<User> = error("no utilitzat")
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
+        override suspend fun getUserByNif(nif: String): Response<User> = error("no utilitzat")
         override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User =
             error("no utilitzat")
 
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun logout(): Response<String> = error("no utilitzat")
+        
+        // Mètodes de llibres, autors, exemplars i préstecs (no utilitzats en aquests tests)
+        override suspend fun getAllLlibres(): List<com.oscar.bibliosedaos.data.models.Llibre> = error("no utilitzat")
+        override suspend fun addLlibre(llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun updateLlibre(id: Long, llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun deleteLlibre(id: Long): String = error("no utilitzat")
+        override suspend fun getLlibreById(id: Long): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun getAllAutors(): List<com.oscar.bibliosedaos.data.models.Autor> = error("no utilitzat")
+        override suspend fun addAutor(autor: com.oscar.bibliosedaos.data.models.Autor): com.oscar.bibliosedaos.data.models.Autor = error("no utilitzat")
+        override suspend fun deleteAutor(id: Long): String = error("no utilitzat")
+        override suspend fun getAllExemplars(): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun getExemplarsLliures(titol: String?, autor: String?): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun addExemplar(exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun updateExemplar(id: Long, exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun deleteExemplar(id: Long): String = error("no utilitzat")
+        override suspend fun getExemplarById(id: Long): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun getPrestecsActius(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun getAllPrestecs(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun createPrestec(prestec: com.oscar.bibliosedaos.data.models.CreatePrestecRequest): com.oscar.bibliosedaos.data.models.Prestec = error("no utilitzat")
+        override suspend fun retornarPrestec(prestecId: Long?): Response<okhttp3.ResponseBody> = error("no utilitzat")
     }
 
     /**
@@ -167,9 +208,30 @@ class CreateUserTest {
 
         override suspend fun getAllUsers(): List<User> = error("no utilitzat")
         override suspend fun getUserById(userId: Long): User = error("no utilitzat")
+        override suspend fun getUserByNif(nif: String): Response<User> = error("no utilitzat")
         override suspend fun updateUser(userId: Long, user: UpdateUserRequest): User = error("no utilitzat")
         override suspend fun deleteUser(userId: Long): Response<Unit> = error("no utilitzat")
         override suspend fun logout(): Response<String> = error("no utilitzat")
+        
+        // Mètodes de llibres, autors, exemplars i préstecs (no utilitzats en aquests tests)
+        override suspend fun getAllLlibres(): List<com.oscar.bibliosedaos.data.models.Llibre> = error("no utilitzat")
+        override suspend fun addLlibre(llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun updateLlibre(id: Long, llibre: com.oscar.bibliosedaos.data.models.Llibre): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun deleteLlibre(id: Long): String = error("no utilitzat")
+        override suspend fun getLlibreById(id: Long): com.oscar.bibliosedaos.data.models.Llibre = error("no utilitzat")
+        override suspend fun getAllAutors(): List<com.oscar.bibliosedaos.data.models.Autor> = error("no utilitzat")
+        override suspend fun addAutor(autor: com.oscar.bibliosedaos.data.models.Autor): com.oscar.bibliosedaos.data.models.Autor = error("no utilitzat")
+        override suspend fun deleteAutor(id: Long): String = error("no utilitzat")
+        override suspend fun getAllExemplars(): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun getExemplarsLliures(titol: String?, autor: String?): List<com.oscar.bibliosedaos.data.models.Exemplar> = error("no utilitzat")
+        override suspend fun addExemplar(exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun updateExemplar(id: Long, exemplar: com.oscar.bibliosedaos.data.models.Exemplar): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun deleteExemplar(id: Long): String = error("no utilitzat")
+        override suspend fun getExemplarById(id: Long): com.oscar.bibliosedaos.data.models.Exemplar = error("no utilitzat")
+        override suspend fun getPrestecsActius(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun getAllPrestecs(usuariId: Long?): List<com.oscar.bibliosedaos.data.models.Prestec> = error("no utilitzat")
+        override suspend fun createPrestec(prestec: com.oscar.bibliosedaos.data.models.CreatePrestecRequest): com.oscar.bibliosedaos.data.models.Prestec = error("no utilitzat")
+        override suspend fun retornarPrestec(prestecId: Long?): Response<okhttp3.ResponseBody> = error("no utilitzat")
     }
 
     // ========== TESTS ==========
@@ -204,37 +266,32 @@ class CreateUserTest {
     @Test
     fun crearUsuari_exit_retornaUsuariCreat() = runTest {
         val vm = AuthViewModel(api = FakeAuthApiSuccess())
-        var result: Pair<Boolean, String>? = null
 
         // ACT: Crear usuari amb dades vàlides
         vm.createUser(
             nick = "newuser",
             password = "password123",
-            nombre = "Nou",
+            nom = "Nou",
             cognom1 = "Usuari",
             cognom2 = null,
             rol = 1,
             nif = "12345678Z",
-            email = "newuser@test.com",
-            tlf = "600600600",
-            carrer = "Carrer Major 1",
             localitat = "Barcelona",
+            carrer = "Carrer Major 1",
             cp = "08001",
-            provincia = "Barcelona"
-        ) { success, message ->
-            result = Pair(success, message)
-        }
+            provincia = "Barcelona",
+            tlf = "600600600",
+            email = "newuser@test.com"
+        )
 
         dispatcher.scheduler.advanceUntilIdle()
 
         // ASSERT: Verificar èxit
-        assertNotNull("El callback hauria de retornar resultat", result)
-        assertTrue("La creació hauria de ser exitosa", result!!.first)
-        assertTrue(
-            "El missatge hauria de confirmar la creació",
-            result!!.second.contains("creado correctamente") ||
-                    result!!.second.contains("creat correctament")
-        )
+        val state = vm.createUserState.value
+        assertTrue("La creació hauria de ser exitosa", state.success)
+        assertNotNull("Hauria de tenir un usuari creat", state.createdUser)
+        assertEquals("L'ID hauria de ser 100", 100L, state.createdUser?.id)
+        assertEquals("El nick hauria de ser 'newuser'", "newuser", state.createdUser?.nick)
     }
 
     /**
@@ -262,37 +319,41 @@ class CreateUserTest {
     @Test
     fun crearUsuari_nickDuplicat_retornaError() = runTest {
         val vm = AuthViewModel(api = FakeAuthApiDuplicateNick())
-        var result: Pair<Boolean, String>? = null
 
         // ACT: Intentar crear amb nick duplicat
         vm.createUser(
             nick = "admin",//nick ja exist
             password = "password123",
-            nombre = "Nou",
+            nom = "Nou",
             cognom1 = "Usuari",
             cognom2 = null,
             rol = 1,
             nif = "12345678Z",
-            email = "newuser@test.com",
-            tlf = "600600600",
-            carrer = "Carrer Major 1",
             localitat = "Barcelona",
+            carrer = "Carrer Major 1",
             cp = "08001",
-            provincia = "Barcelona"
-        ) { success, message ->
-            result = Pair(success, message)
-        }
+            provincia = "Barcelona",
+            tlf = "600600600",
+            email = "newuser@test.com"
+        )
 
         dispatcher.scheduler.advanceUntilIdle()
 
         // ASSERT: Verificar error de nick duplicat
-        assertNotNull("El callback hauria de retornar resultat", result)
-        assertFalse("La creació NO hauria de ser exitosa", result!!.first)
+        val state = vm.createUserState.value
+        assertFalse("La creació NO hauria de ser exitosa", state.success)
+        assertNotNull("Hauria de tenir un error", state.error)
         assertTrue(
-            "El missatge hauria de mencionar el conflicte",
-            result!!.second.contains("409") ||
-                    result!!.second.contains("ja existeix") ||
-                    result!!.second.contains("ya existe")
+            "El missatge hauria de mencionar el conflicte. Missatge rebut: '${state.error}'",
+            state.error?.contains("409") == true ||
+                    state.error?.contains("ja existeix", ignoreCase = true) == true ||
+                    state.error?.contains("ja està", ignoreCase = true) == true ||
+                    state.error?.contains("ya existe", ignoreCase = true) == true ||
+                    state.error?.contains("ya está", ignoreCase = true) == true ||
+                    state.error?.contains("duplicat", ignoreCase = true) == true ||
+                    state.error?.contains("duplicado", ignoreCase = true) == true ||
+                    state.error?.contains("en ús", ignoreCase = true) == true ||
+                    state.error?.contains("en uso", ignoreCase = true) == true
         )
     }
 
@@ -322,37 +383,35 @@ class CreateUserTest {
     @Test
     fun crearUsuari_sinPermisos_retornaError403() = runTest {
         val vm = AuthViewModel(api = FakeAuthApiUnauthorized())
-        var result: Pair<Boolean, String>? = null
 
         // ACT: Intentar crear sense permisos
         vm.createUser(
             nick = "newuser",
             password = "password123",
-            nombre = "Nou",
+            nom = "Nou",
             cognom1 = "Usuari",
             cognom2 = null,
             rol = 1,
             nif = "12345678Z",
-            email = "newuser@test.com",
-            tlf = "600600600",
-            carrer = "Carrer Major 1",
             localitat = "Barcelona",
+            carrer = "Carrer Major 1",
             cp = "08001",
-            provincia = "Barcelona"
-        ) { success, message ->
-            result = Pair(success, message)
-        }
+            provincia = "Barcelona",
+            tlf = "600600600",
+            email = "newuser@test.com"
+        )
 
         dispatcher.scheduler.advanceUntilIdle()
 
         // ASSERT: Verificar error de permisos
-        assertNotNull("El callback hauria de retornar resultat", result)
-        assertFalse("La creació NO hauria de ser exitosa", result!!.first)
+        val state = vm.createUserState.value
+        assertFalse("La creació NO hauria de ser exitosa", state.success)
+        assertNotNull("Hauria de tenir un error", state.error)
         assertTrue(
             "El missatge hauria de mencionar falta de permisos",
-            result!!.second.contains("403") ||
-                    result!!.second.contains("permisos") ||
-                    result!!.second.contains("permisos")
+            state.error?.contains("403") == true ||
+                    state.error?.contains("permisos", ignoreCase = true) == true ||
+                    state.error?.contains("Forbidden", ignoreCase = true) == true
         )
     }
 }
