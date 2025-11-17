@@ -208,6 +208,39 @@ object SanctionManager {
         editor.putString(KEY_SANCTIONS, gson.toJson(sanctions))
         editor.commit() // Usar commit() per assegurar que es guarda immediatament
     }
+
+    /**
+     * Elimina tot l'historial de sancions (actives i expirades).
+     * 
+     * **ATENCIÓ:** Aquesta operació elimina TOTES les sancions del sistema.
+     * 
+     * @param context Context de l'aplicació
+     */
+    fun clearAllSanctions(context: Context) {
+        val prefs = getSharedPreferences(context)
+        val editor = prefs.edit()
+        editor.putString(KEY_SANCTIONS, "[]")
+        editor.commit() // Usar commit() per assegurar que es guarda immediatament
+    }
+
+    /**
+     * Obté totes les sancions (actives i expirades) - historial complet.
+     * 
+     * @param context Context de l'aplicació
+     * @return Llista de totes les sancions (historial complet)
+     */
+    fun getAllSanctions(context: Context): List<Sanction> {
+        val prefs = getSharedPreferences(context)
+        val gson = Gson()
+        val sanctionsJson = prefs.getString(KEY_SANCTIONS, "[]")
+        val type = object : TypeToken<List<Sanction>>() {}.type
+        return try {
+            gson.fromJson<List<Sanction>>(sanctionsJson, type) ?: emptyList()
+        } catch (e: Exception) {
+            Log.e("SanctionManager", "Error al llegir totes les sancions: ${e.message}", e)
+            emptyList()
+        }
+    }
 }
 
 /**

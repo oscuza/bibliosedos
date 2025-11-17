@@ -5,7 +5,9 @@
 package com.bibliotecasedaos.biblioteca.service;
 
 import com.bibliotecasedaos.biblioteca.entity.Usuari;
+import com.bibliotecasedaos.biblioteca.error.UsuariHasActiveLoansException;
 import com.bibliotecasedaos.biblioteca.error.UsuariNotFoundException;
+import com.bibliotecasedaos.biblioteca.repository.PrestecRepository;
 import com.bibliotecasedaos.biblioteca.repository.UsuariRepository;
 import java.util.List;
 import java.util.Objects;
@@ -29,6 +31,9 @@ public class UsuariServiceImpl implements UsuariService {
     
     @Autowired
     private PasswordEncoder passwordEncoder;
+    
+    @Autowired
+    private PrestecRepository prestecRepository;
     
     /**
      * Recupera una llista de tots els usuaris emmagatzemats a la base de dades.
@@ -116,11 +121,36 @@ public class UsuariServiceImpl implements UsuariService {
 
     /**
      * Elimina un usuari de la base de dades mitjançant el seu identificador.
+     * Valida que l'usuari no tingui préstecs actius o històrics abans d'eliminar-lo.
      *
      * @param id L'identificador de l'usuari a eliminar.
+     * @throws UsuariNotFoundException Si l'usuari no es troba.
+     * @throws UsuariHasActiveLoansException Si l'usuari té préstecs (actius o històrics).
      */
     @Override
     public void deleteUsuari(Long id) {
+        // Verificar que l'usuari existeix
+        if (!usuariRepository.existsById(id)) {
+            throw new UsuariNotFoundException("Usuari amb ID " + id + " no trobat.");
+        }
+        
+        // Comprovar si l'usuari té préstecs ACTIUS (pendents de retornar)
+        List<?> activeLoans = prestecRepository.findPrestecsActiusByUsuariId(id);
+        int activeLoansCount = activeLoans != null ? activeLoans.size() : 0;
+        
+        // Si té préstecs actius (pendents), llançar excepció
+        if (activeLoansCount > 0) {
+            throw new UsuariHasActiveLoansException(id, activeLoansCount, activeLoansCount);
+        }
+        
+        // Si no té préstecs actius, procedir amb l'eliminació
+        // Eliminar primer tots els préstecs històrics (ja retornats) en cascada
+        List<?> historicalLoans = prestecRepository.findAllPrestecsByUsuariId(id);
+        if (historicalLoans != null && !historicalLoans.isEmpty()) {
+            prestecRepository.deleteAll(historicalLoans);
+        }
+        
+        // Finalment eliminar l'usuari
         usuariRepository.deleteById(id);
     }
 

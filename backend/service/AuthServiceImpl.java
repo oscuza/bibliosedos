@@ -51,7 +51,7 @@ public class AuthServiceImpl implements AuthService{
         
         if (usuariRepository.existsByNick(request.getNick())) {
             // Llança la nostra excepció de negoci
-            throw new NickAlreadyExistsException("El nick '" + request.getNick() + "' ja existeix a la base de dades. Si us plau, escolliu-ne un altre.");
+            throw new NickAlreadyExistsException("L'email o el nick ja està en ús per un altre usuari");
         }
         
         var user = Usuari.builder()              

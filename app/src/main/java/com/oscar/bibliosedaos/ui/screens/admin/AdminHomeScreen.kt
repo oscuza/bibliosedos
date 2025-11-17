@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -22,6 +23,7 @@ import androidx.navigation.NavController
 import com.oscar.bibliosedaos.data.network.User
 import com.oscar.bibliosedaos.navigation.AppScreens
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
+import kotlinx.coroutines.launch
 
 /**
  * Pantalla principal d'administració d'usuaris.
@@ -68,8 +70,21 @@ fun AdminHomeScreen(
      */
     val loginState by authViewModel.loginUiState.collectAsState()
 
+    /**
+     * Estat d'eliminació d'usuaris.
+     * Conté: isDeleting, success, error, deletedUserId
+     */
+    val deleteUserState by authViewModel.deleteUserState.collectAsState()
+
     // Context d'Android per mostrar Toasts
     val context = LocalContext.current
+
+    // Snackbar per mostrar missatges d'error i èxit
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    // Flag per rastrejar si s'ha iniciat una eliminació
+    var hasSubmittedDelete by remember { mutableStateOf(false) }
 
     // ========== Estats Locals per Diàlegs ==========
 
@@ -122,6 +137,38 @@ fun AdminHomeScreen(
         }
     }
 
+    // ========== GESTIÓ DE RESPOSTES DE DELETE USER ==========
+
+    LaunchedEffect(deleteUserState.isDeleting, deleteUserState.error, deleteUserState.success) {
+        if (hasSubmittedDelete && !deleteUserState.isDeleting) {
+            if (deleteUserState.error == null && deleteUserState.success) {
+                // Èxit: mostra missatge i recarrega llista
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = "Usuari eliminat correctament",
+                        duration = SnackbarDuration.Short
+                    )
+                }
+                hasSubmittedDelete = false
+                showDeleteDialog = false
+                userToDelete = null
+                // Recarregar llista d'usuaris
+                authViewModel.loadAllUsers()
+            } else if (deleteUserState.error != null) {
+                // Error: mostra missatge d'error
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = deleteUserState.error ?: "Error eliminant usuari",
+                        duration = SnackbarDuration.Long,
+                        actionLabel = "Tancar"
+                    )
+                }
+                hasSubmittedDelete = false
+                showDeleteDialog = false
+                userToDelete = null
+            }
+        }
+    }
 
     // ========== Diàleg de Confirmació d'Eliminació ==========
 
@@ -137,17 +184,26 @@ fun AdminHomeScreen(
                 Text("Estàs segur d'eliminar l'usuari '${userToDelete?.nick}'?")
             },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         userToDelete?.let { user ->
+                            hasSubmittedDelete = true
                             authViewModel.deleteUser(user.id)
-                            Toast.makeText(context, "Usuari eliminat correctament", Toast.LENGTH_SHORT).show()
                         }
-                        showDeleteDialog = false
-                        userToDelete = null
-                    }
+                    },
+                    enabled = !deleteUserState.isDeleting,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
                 ) {
-                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                    if (deleteUserState.isDeleting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = MaterialTheme.colorScheme.onError
+                        )
+                    } else {
+                        Text("Eliminar", color = MaterialTheme.colorScheme.onError)
+                    }
                 }
             },
             dismissButton = {
@@ -161,6 +217,7 @@ fun AdminHomeScreen(
     // ========== UI Principal ==========
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Gestió d'Usuaris") },
@@ -402,16 +459,16 @@ fun AdminHomeScreen(
                             }
                         }
 
-                        // ========== NOVA CARD: Usuaris amb Préstecs ==========
+                        // ========== CARD: Gestió de Préstecs ==========
                         item {
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        navController.navigate(AppScreens.UsersWithLoansScreen.route)
+                                        navController.navigate(AppScreens.LoanManagementScreen.route)
                                     },
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
                                 ),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                             ) {
@@ -427,22 +484,22 @@ fun AdminHomeScreen(
                                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
                                         Icon(
-                                            Icons.AutoMirrored.Filled.MenuBook,
+                                            Icons.AutoMirrored.Filled.LibraryBooks,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
                                             modifier = Modifier.size(32.dp)
                                         )
                                         Column {
                                             Text(
-                                                "Usuaris amb Préstecs",
+                                                "Gestió de Préstecs",
                                                 style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                                color = MaterialTheme.colorScheme.onTertiaryContainer
                                             )
                                             Text(
-                                                "Préstecs actius",
+                                                "Usuaris amb préstecs i préstecs en retard",
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(
+                                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(
                                                     alpha = 0.7f
                                                 )
                                             )
@@ -450,63 +507,8 @@ fun AdminHomeScreen(
                                     }
                                     Icon(
                                         Icons.Default.ChevronRight,
-                                        contentDescription = "Anar a préstecs",
-                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
-                                    )
-                                }
-                            }
-                        }
-
-                        // ========== NOVA CARD: Préstecs en Retard ==========
-                        item {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        navController.navigate(AppScreens.OverdueLoansScreen.route)
-                                    },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.errorContainer
-                                ),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Warning,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onErrorContainer,
-                                            modifier = Modifier.size(32.dp)
-                                        )
-                                        Column {
-                                            Text(
-                                                "Préstecs en Retard",
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onErrorContainer
-                                            )
-                                            Text(
-                                                "Sancions i retards",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onErrorContainer.copy(
-                                                    alpha = 0.7f
-                                                )
-                                            )
-                                        }
-                                    }
-                                    Icon(
-                                        Icons.Default.ChevronRight,
-                                        contentDescription = "Anar a préstecs en retard",
-                                        tint = MaterialTheme.colorScheme.onErrorContainer
+                                        contentDescription = "Anar a gestió de préstecs",
+                                        tint = MaterialTheme.colorScheme.onTertiaryContainer
                                     )
                                 }
                             }

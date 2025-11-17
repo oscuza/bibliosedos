@@ -208,15 +208,30 @@ class BookViewModel(
         viewModelScope.launch {
             _llibresState.value = _llibresState.value.copy(isDeleting = id)
             try {
-                api.deleteLlibre(id)
-                val updatedList = _llibresState.value.llibres.filter { it.id != id }
-                _llibresState.value = _llibresState.value.copy(
-                    llibres = updatedList,
-                    isDeleting = null
-                )
+                val response = api.deleteLlibre(id)
+                if (response.isSuccessful) {
+                    val updatedList = _llibresState.value.llibres.filter { it.id != id }
+                    _llibresState.value = _llibresState.value.copy(
+                        llibres = updatedList,
+                        isDeleting = null
+                    )
+                } else {
+                    // Si la resposta no és exitosa, llançar HttpException per gestionar l'error
+                    throw retrofit2.HttpException(response)
+                }
             } catch (e: Exception) {
+                val errorMessage = if (e is retrofit2.HttpException) {
+                    try {
+                        val errorBody = e.response()?.errorBody()?.string()
+                        errorBody ?: "Error eliminant llibre: ${e.message}"
+                    } catch (ex: Exception) {
+                        "Error eliminant llibre: ${e.message}"
+                    }
+                } else {
+                    "Error eliminant llibre: ${e.message}"
+                }
                 _llibresState.value = _llibresState.value.copy(
-                    error = "Error eliminant llibre: ${e.message}",
+                    error = errorMessage,
                     isDeleting = null
                 )
             }
@@ -343,15 +358,30 @@ class BookViewModel(
         viewModelScope.launch {
             _autorsState.value = _autorsState.value.copy(isDeleting = id)
             try {
-                api.deleteAutor(id)
-                val updatedList = _autorsState.value.autors.filter { it.id != id }
-                _autorsState.value = _autorsState.value.copy(
-                    autors = updatedList,
-                    isDeleting = null
-                )
+                val response = api.deleteAutor(id)
+                if (response.isSuccessful) {
+                    val updatedList = _autorsState.value.autors.filter { it.id != id }
+                    _autorsState.value = _autorsState.value.copy(
+                        autors = updatedList,
+                        isDeleting = null
+                    )
+                } else {
+                    // Si la resposta no és exitosa, llançar HttpException per gestionar l'error
+                    throw retrofit2.HttpException(response)
+                }
             } catch (e: Exception) {
+                val errorMessage = if (e is retrofit2.HttpException) {
+                    try {
+                        val errorBody = e.response()?.errorBody()?.string()
+                        errorBody ?: "Error eliminant autor: ${e.message}"
+                    } catch (ex: Exception) {
+                        "Error eliminant autor: ${e.message}"
+                    }
+                } else {
+                    "Error eliminant autor: ${e.message}"
+                }
                 _autorsState.value = _autorsState.value.copy(
-                    error = "Error eliminant autor: ${e.message}",
+                    error = errorMessage,
                     isDeleting = null
                 )
             }
@@ -655,18 +685,23 @@ class BookViewModel(
         viewModelScope.launch {
             _exemplarsState.value = _exemplarsState.value.copy(isDeleting = id)
             try {
-                api.deleteExemplar(id)
-                val updatedList = _exemplarsState.value.exemplars.filter { it.id != id }
-                _exemplarsState.value = _exemplarsState.value.copy(
-                    exemplars = updatedList,
-                    isDeleting = null
-                )
+                val response = api.deleteExemplar(id)
+                if (response.isSuccessful) {
+                    val updatedList = _exemplarsState.value.exemplars.filter { it.id != id }
+                    _exemplarsState.value = _exemplarsState.value.copy(
+                        exemplars = updatedList,
+                        isDeleting = null
+                    )
+                } else {
+                    // Si la resposta no és exitosa, llançar HttpException per gestionar l'error
+                    throw retrofit2.HttpException(response)
+                }
             } catch (e: Exception) {
                 val errorMessage = when {
-                    e.message?.contains("400") == true ->
+                    e is retrofit2.HttpException && e.code() == 400 ->
                         "No es pot eliminar un exemplar prestat"
 
-                    e.message?.contains("404") == true ->
+                    e is retrofit2.HttpException && e.code() == 404 ->
                         "Exemplar no trobat"
 
                     else ->

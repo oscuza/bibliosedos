@@ -1234,15 +1234,25 @@ fun AdminUserSection(
             onClick = {
                 navController.navigate(AppScreens.BooksScreen.route)
             })
+    }
 
-        HorizontalDivider()
+    // ========== Gestió de Préstecs ==========
 
+    /**
+     * Card per opcions de gestió de préstecs.
+     * Només disponible per administradors.
+     */
+    SectionCard(
+        title = "Gestió de Préstecs",
+        icon = Icons.AutoMirrored.Filled.LibraryBooks,
+        containerColor = MaterialTheme.colorScheme.tertiaryContainer
+    ) {
         OptionItem(
-            icon = Icons.AutoMirrored.Filled.MenuBook,
-            title = "Usuaris amb prestecs actius",
-            subtitle = "Explorar tots els usuaris amb prestecs actius de la biblioteca",
+            icon = Icons.Default.Menu,
+            title = "Gestionar Préstecs",
+            subtitle = "Usuaris amb préstecs i préstecs en retard",
             onClick = {
-                navController.navigate(AppScreens.UsersWithLoansScreen.route)
+                navController.navigate(AppScreens.LoanManagementScreen.route)
             })
     }
 

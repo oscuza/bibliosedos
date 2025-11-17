@@ -31,6 +31,7 @@ import com.oscar.bibliosedaos.ui.screens.books.AddExemplarScreen
 import com.oscar.bibliosedaos.ui.screens.loans.MyLoansScreen
 import com.oscar.bibliosedaos.ui.screens.loans.UsersWithLoansScreen
 import com.oscar.bibliosedaos.ui.screens.loans.LoanHistoryScreen
+import com.oscar.bibliosedaos.ui.screens.loans.LoanManagementScreen
 import com.oscar.bibliosedaos.ui.screens.admin.AdminHomeScreen
 import com.oscar.bibliosedaos.ui.screens.admin.AddUserScreen
 import com.oscar.bibliosedaos.ui.screens.admin.UserSearchScreen
@@ -174,7 +175,7 @@ class MainActivity : ComponentActivity() {
  * - **Pantalles d'Administrador**: AdminHomeScreen, AddUserScreen, UserSearchScreen
  * - **Pantalles de Perfil**: ProfileScreen (ruta: UserProfileScreen), EditProfileScreen, ChangePasswordScreen
  * - **Pantalles de Llibres**: BooksScreen, BookManagementScreen, AddBookScreen, EditBookScreen, AddExemplarScreen
- * - **Pantalles de Préstecs**: MyLoansScreen, UsersWithLoansScreen, LoanHistoryScreen, OverdueLoansScreen
+ * - **Pantalles de Préstecs**: MyLoansScreen, UsersWithLoansScreen, LoanHistoryScreen, OverdueLoansScreen, LoanManagementScreen
  * 
  * **ViewModels Compartits:**
  * - [AuthViewModel]: Gestió d'autenticació i usuaris
@@ -414,6 +415,21 @@ fun AppNavigation() {
          */
         composable(AppScreens.OverdueLoansScreen.route) {
             OverdueLoansScreen(
+                navController = navController,
+                loanViewModel = loanViewModel,
+                authViewModel = authViewModel
+            )
+        }
+
+        // ========== PANTALLA DE GESTIÓ DE PRÉSTECS (ADMIN) ==========
+
+        /**
+         * Pantalla principal de gestió de préstecs per administradors.
+         * Proporciona accés centralitzat a totes les funcionalitats relacionades amb préstecs.
+         * Només accessible per administradors.
+         */
+        composable(AppScreens.LoanManagementScreen.route) {
+            LoanManagementScreen(
                 navController = navController,
                 loanViewModel = loanViewModel,
                 authViewModel = authViewModel

@@ -263,22 +263,61 @@ fun AddUserScreen(
                     )
 
                     // Selector de rol
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Tipus d'Usuari*",
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
-                        Text("Rol:", modifier = Modifier.weight(1f))
-                        RadioButton(
-                            selected = rol == 1,
-                            onClick = { rol = 1 }
+                        // Opció: Usuari Normal
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            RadioButton(
+                                selected = rol == 1,
+                                onClick = { rol = 1 }
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Usuari Normal",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        
+                        // Opció: Administrador
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            RadioButton(
+                                selected = rol == 2,
+                                onClick = { rol = 2 }
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Administrador",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                    if (rol == 2) {
+                        Text(
+                            text = "⚠️ L'usuari tindrà permisos d'administrador",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 8.dp, top = 4.dp)
                         )
-                        Text("Usuari")
-                        Spacer(modifier = Modifier.width(16.dp))
-                        RadioButton(
-                            selected = rol == 2,
-                            onClick = { rol = 2 }
-                        )
-                        Text("Admin")
                     }
                 }
             }

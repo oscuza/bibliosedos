@@ -16,6 +16,9 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -23,6 +26,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import retrofit2.Response
 
 @OptIn(ExperimentalCoroutinesApi::class)
 abstract class BaseBookViewModelTest {
@@ -304,9 +308,10 @@ internal class FakeBookApiSuccess : AuthApiService {
         }
     }
 
-    override suspend fun deleteLlibre(id: Long): String {
+    override suspend fun deleteLlibre(id: Long): Response<ResponseBody> {
         llibres.removeAll { it.id == id }
-        return "Llibre esborrat"
+        val responseBody = "Llibre esborrat".toResponseBody("text/plain".toMediaType())
+        return Response.success(responseBody)
     }
 
     override suspend fun getLlibreById(id: Long): Llibre {
@@ -321,9 +326,10 @@ internal class FakeBookApiSuccess : AuthApiService {
         return newAutor
     }
 
-    override suspend fun deleteAutor(id: Long): String {
+    override suspend fun deleteAutor(id: Long): Response<ResponseBody> {
         autors.removeAll { it.id == id }
-        return "Autor esborrat"
+        val responseBody = "Autor esborrat".toResponseBody("text/plain".toMediaType())
+        return Response.success(responseBody)
     }
 
     override suspend fun getAllExemplars(): List<Exemplar> = exemplars
@@ -349,9 +355,10 @@ internal class FakeBookApiSuccess : AuthApiService {
         }
     }
 
-    override suspend fun deleteExemplar(id: Long): String {
+    override suspend fun deleteExemplar(id: Long): Response<ResponseBody> {
         exemplars.removeAll { it.id == id }
-        return "Exemplar esborrat"
+        val responseBody = "Exemplar esborrat".toResponseBody("text/plain".toMediaType())
+        return Response.success(responseBody)
     }
 
     override suspend fun getExemplarById(id: Long): Exemplar {
@@ -385,7 +392,7 @@ internal class FakeBookApiError : AuthApiService {
         throw Exception("Error actualitzant llibre")
     }
 
-    override suspend fun deleteLlibre(id: Long): String {
+    override suspend fun deleteLlibre(id: Long): Response<ResponseBody> {
         throw Exception("Error eliminant llibre")
     }
 
@@ -401,7 +408,7 @@ internal class FakeBookApiError : AuthApiService {
         throw Exception("Error creant autor")
     }
 
-    override suspend fun deleteAutor(id: Long): String {
+    override suspend fun deleteAutor(id: Long): Response<ResponseBody> {
         throw Exception("Error eliminant autor")
     }
 
@@ -421,7 +428,7 @@ internal class FakeBookApiError : AuthApiService {
         throw Exception("Error actualitzant exemplar")
     }
 
-    override suspend fun deleteExemplar(id: Long): String {
+    override suspend fun deleteExemplar(id: Long): Response<ResponseBody> {
         throw Exception("Error eliminant exemplar")
     }
 

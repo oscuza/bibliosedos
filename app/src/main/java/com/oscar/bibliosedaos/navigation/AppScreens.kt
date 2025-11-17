@@ -308,6 +308,32 @@ sealed class AppScreens(val route: String) {
     object BookManagementScreen : AppScreens("book_management_screen")
 
     /**
+     * Pantalla principal de gestió de préstecs per administradors.
+     *
+     * **Descripció:**
+     * Pantalla dedicada a la gestió centralitzada de préstecs que proporciona
+     * accés ràpid a totes les funcionalitats relacionades amb préstecs.
+     *
+     * **Funcionalitats:**
+     * - Veure usuaris amb préstecs actius
+     * - Gestionar préstecs en retard
+     * - Accés centralitzat a totes les operacions de préstecs
+     *
+     * **Permisos:**
+     * - ⚠️ Només accessible per administradors (rol=2)
+     * - 🔒 Requereix token JWT vàlid
+     *
+     * **Ruta:** `loan_management_screen`
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see LoanManagementScreen
+     * @see UsersWithLoansScreen
+     * @see OverdueLoansScreen
+     */
+    object LoanManagementScreen : AppScreens("loan_management_screen")
+
+    /**
      * Pantalla per afegir un nou llibre.
      *
      * **Descripció:**

@@ -67,6 +67,9 @@ fun BookManagementScreen(
     // Variables per al diàleg de confirmació d'eliminació
     var showDeleteDialog by remember { mutableStateOf(false) }
     var llibreToDelete by remember { mutableStateOf<Long?>(null) }
+    
+    // Variable per al diàleg d'afegir autor
+    var showAddAutorDialog by remember { mutableStateOf(false) }
 
     // ========== CÀRREGA INICIAL ==========
 
@@ -89,6 +92,16 @@ fun BookManagementScreen(
                 )
                 bookViewModel.clearErrors()
             }
+        }
+    }
+
+    // ========== TANCAR DIÀLEG DESPRÉS DE CREAR AUTOR ==========
+
+    LaunchedEffect(autorsState.isCreating) {
+        // Quan acaba de crear l'autor (isCreating passa de true a false) i no hi ha error
+        if (!autorsState.isCreating && autorsState.error == null && showAddAutorDialog) {
+            // Només tancar si s'ha creat correctament (no hi ha error)
+            showAddAutorDialog = false
         }
     }
 
@@ -127,7 +140,7 @@ fun BookManagementScreen(
                 onClick = {
                     when (selectedTab) {
                         0 -> navController.navigate(AppScreens.AddBookScreen.route)
-                        1 -> { /* Diàleg per afegir autor */ }
+                        1 -> showAddAutorDialog = true
                         2 -> navController.navigate(AppScreens.AddExemplarScreen.route)
                     }
                 }
@@ -259,6 +272,70 @@ fun BookManagementScreen(
                         showDeleteDialog = false
                         llibreToDelete = null
                     }
+                ) {
+                    Text("Cancel·lar")
+                }
+            }
+        )
+    }
+
+    // ========== DIÀLEG AFEGIR AUTOR ==========
+
+    if (showAddAutorDialog) {
+        var nouAutorNom by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { showAddAutorDialog = false },
+            title = { 
+                Text(
+                    "Afegir Nou Autor",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "Introdueix el nom complet de l'autor:",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    OutlinedTextField(
+                        value = nouAutorNom,
+                        onValueChange = { nouAutorNom = it },
+                        label = { Text("Nom de l'autor") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !autorsState.isCreating
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (nouAutorNom.isNotBlank()) {
+                            bookViewModel.createAutor(nouAutorNom.trim())
+                        }
+                    },
+                    enabled = nouAutorNom.isNotBlank() && !autorsState.isCreating
+                ) {
+                    if (autorsState.isCreating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text("Afegir")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { 
+                        showAddAutorDialog = false
+                        nouAutorNom = ""
+                    },
+                    enabled = !autorsState.isCreating
                 ) {
                     Text("Cancel·lar")
                 }

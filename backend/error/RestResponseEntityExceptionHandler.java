@@ -78,6 +78,17 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
         return new ResponseEntity<>(message, HttpStatus.CONFLICT);
     }
     
+    /**
+     * Maneja les excepcions llançades quan s'intenta eliminar un usuari que té préstecs.
+     * @param exception L'excepció {@link UsuariHasActiveLoansException} llançada.
+     * @return Una resposta HTTP amb el codi {@code 409 Conflict} i el cos de l'error.
+     */
+    @ExceptionHandler(UsuariHasActiveLoansException.class)
+    public ResponseEntity<ErrorMessage> usuariHasActiveLoansException(UsuariHasActiveLoansException exception) {
+        ErrorMessage message = new ErrorMessage(HttpStatus.CONFLICT, exception.getMessage());
+        return new ResponseEntity<>(message, HttpStatus.CONFLICT);
+    }
+    
     @ExceptionHandler(PrestecNotFoundException.class)
     public ResponseEntity<ErrorMessage> prestecNotFoundException(PrestecNotFoundException exception) {
         ErrorMessage message = new ErrorMessage(HttpStatus.NOT_FOUND, exception.getMessage());
@@ -142,12 +153,19 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorMessage> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         
-        String errorMessage = "S'ha violat una restricció de dades (clau duplicada o valor nul). ";
+        String errorMessage = "S'ha violat una restricció de dades. ";
+        String causeMessage = ex.getCause() != null ? ex.getCause().getMessage() : "";
         
-        if (ex.getCause() != null && ex.getCause().getMessage().contains("llave duplicada")) {
-            errorMessage += "Detall: " + ex.getCause().getMessage();
+        // Detectar errors de clau forana relacionats amb préstecs
+        if (causeMessage.contains("llave foránea") && causeMessage.contains("prestecs")) {
+            errorMessage = "No es pot eliminar l'usuari perquè té préstecs associats. " +
+                          "Cal retornar tots els llibres abans d'eliminar l'usuari.";
+        } else if (causeMessage.contains("llave duplicada") || causeMessage.contains("unique constraint")) {
+            errorMessage = "L'email o el nick ja està en ús per un altre usuari";
+        } else if (causeMessage.contains("llave foránea")) {
+            errorMessage += "No es pot eliminar aquest element perquè està referenciat per altres registres.";
         } else {
-            errorMessage += "Si us plau, revisa si el Nick, NIF o Email ja existeixen.";
+            errorMessage += "Si us plau, revisa les dades introduïdes.";
         }
 
         ErrorMessage message = new ErrorMessage(HttpStatus.CONFLICT, errorMessage);

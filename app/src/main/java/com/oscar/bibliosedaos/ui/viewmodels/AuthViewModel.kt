@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import com.oscar.bibliosedaos.data.network.*
+import com.oscar.bibliosedaos.data.network.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -568,12 +569,43 @@ class AuthViewModel(
 
     /**
      * Elimina un usuari (només admin).
+     * 
+     * Abans d'eliminar l'usuari, retorna automàticament tots els préstecs actius
+     * per assegurar que no hi ha préstecs pendents.
      */
     fun deleteUser(userId: Long) {
         viewModelScope.launch {
             _deleteUserState.value = DeleteUserUiState(isDeleting = true)
             
             try {
+                // Primer: obtenir tots els préstecs actius d'aquest usuari
+                val activeLoans = try {
+                    api.getPrestecsActius(usuariId = userId)
+                } catch (e: Exception) {
+                    // Si no es poden obtenir els préstecs, continuar amb l'eliminació
+                    // (pot ser que no hi hagi préstecs o que hi hagi un error)
+                    emptyList()
+                }
+                
+                // Segon: retornar tots els préstecs actius abans d'eliminar l'usuari
+                if (activeLoans.isNotEmpty()) {
+                    activeLoans.forEach { prestec ->
+                        try {
+                            prestec.id?.let { prestecId ->
+                                val response = api.retornarPrestec(prestecId)
+                                if (!response.isSuccessful) {
+                                    // Si un préstec no es pot retornar, registrar però continuar
+                                    android.util.Log.w("AuthViewModel", "No s'ha pogut retornar el préstec $prestecId")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // Si hi ha error retornant un préstec, continuar amb els altres
+                            android.util.Log.w("AuthViewModel", "Error retornant préstec ${prestec.id}: ${e.message}")
+                        }
+                    }
+                }
+                
+                // Tercer: intentar eliminar l'usuari
                 val response = api.deleteUser(userId)
                 if (response.isSuccessful) {
                     // Recarregar llista d'usuaris
@@ -610,27 +642,33 @@ class AuthViewModel(
             try {
                 // Primer verificar la contrasenya actual fent login
                 val authRequest = AuthenticationRequest(user.nick, currentPassword)
-                api.login(authRequest)
+                val authResponse = api.login(authRequest)
+                
+                // Actualitzar el token després del login exitós
+                TokenManager.saveToken(authResponse.token)
 
-                // Si el login és exitós, actualitzar la contrasenya
+                // Carregar les dades completes de l'usuari per obtenir tots els camps reals
+                val userComplete = api.getUserById(user.id)
+
+                // Si el login és exitós, actualitzar la contrasenya amb les dades reals
                 val updateRequest = UpdateUserRequest(
-                    id = user.id,
-                    nick = user.nick,
-                    nom = user.nom,
-                    cognom1 = user.cognom1 ?: "",
-                    cognom2 = user.cognom2,
-                    rol = user.rol,
-                    nif = user.nif ?: "000000000",
-                    localitat = user.localitat ?: "Desconeguda",
-                    carrer = user.carrer ?: "Desconegut",
-                    cp = user.cp ?: "00000",
-                    provincia = user.provincia ?: "Desconeguda",
-                    tlf = user.tlf ?: "000000000",
-                    email = user.email ?: "unknown@example.com",
+                    id = userComplete.id,
+                    nick = userComplete.nick,
+                    nom = userComplete.nom,
+                    cognom1 = userComplete.cognom1 ?: "",
+                    cognom2 = userComplete.cognom2,
+                    rol = userComplete.rol,
+                    nif = userComplete.nif ?: "000000000",
+                    localitat = userComplete.localitat ?: "Desconeguda",
+                    carrer = userComplete.carrer ?: "Desconegut",
+                    cp = userComplete.cp ?: "00000",
+                    provincia = userComplete.provincia ?: "Desconeguda",
+                    tlf = userComplete.tlf ?: "000000000",
+                    email = userComplete.email ?: "unknown@example.com",
                     password = newPassword
                 )
 
-                api.updateUser(user.id, updateRequest)
+                api.updateUser(userComplete.id, updateRequest)
 
                 _changePasswordState.value = ChangePasswordUiState(
                     success = true
@@ -709,32 +747,132 @@ class AuthViewModel(
                     null
                 }
 
-                // Intentar parsear el errorBody com ErrorMessage
+                // Intentar parsejar el errorBody com ErrorMessage
                 val errorMessage = errorBody?.let { body ->
                     try {
                         val gson = Gson()
                         val error = gson.fromJson(body, ErrorMessage::class.java)
                         error.message
                     } catch (ex: Exception) {
-                        null
+                        // Si no es pot parsejar com ErrorMessage, retornar el body directament
+                        body
                     }
                 }
 
                 // Si tenim un missatge del backend, l'utilitzem
-                val backendMessage = errorMessage ?: errorBody
+                // Prioritzar el missatge parsejat, però també considerar el body brut per detectar paraules clau
+                val backendMessage = when {
+                    errorMessage != null && errorMessage.isNotEmpty() -> errorMessage
+                    errorBody != null && errorBody.isNotEmpty() -> errorBody
+                    else -> null
+                }
+                
+                // Si el backendMessage no conté la informació completa, buscar també al errorBody brut
+                val fullMessage = when {
+                    backendMessage != null -> backendMessage
+                    errorBody != null && errorBody.isNotEmpty() -> errorBody
+                    else -> null
+                }
 
                 when (code) {
                     409 -> {
-                        // CONFLICT - Email/Nick duplicat
+                        // CONFLICT - Pot ser: Email/Nick duplicat, Usuari amb préstecs, o altra violació d'integritat
+                        // IMPORTANT: Comprovar PRIMER si és un error de clau forània (préstecs)
+                        // abans de comprovar clau duplicada per evitar falsos positius
+                        
+                        // DEBUG: Log temporal per veure què està rebent
+                        android.util.Log.d("AuthViewModel", "Error 409 - backendMessage: $backendMessage")
+                        android.util.Log.d("AuthViewModel", "Error 409 - errorBody: $errorBody")
+                        android.util.Log.d("AuthViewModel", "Error 409 - fullMessage: $fullMessage")
+                        
+                        // Detectar primer si és clau forània (préstecs) - aquesta comprovació ha de ser PRIMERA
+                        // CRITICAL: Detectar PRIMER indicadors explícits de duplicació - si hi són, NO és clau forània
+                        val hasExplicitDuplicateKeywords = fullMessage?.contains("llave duplicada", ignoreCase = true) == true ||
+                                fullMessage?.contains("clau duplicada", ignoreCase = true) == true ||
+                                fullMessage?.contains("unique constraint", ignoreCase = true) == true ||
+                                fullMessage?.contains("ja existeixen", ignoreCase = true) == true ||
+                                fullMessage?.contains("Nick, NIF o Email", ignoreCase = true) == true ||
+                                fullMessage?.contains("ja existeix", ignoreCase = true) == true ||
+                                fullMessage?.contains("ya existe", ignoreCase = true) == true ||
+                                fullMessage?.contains("està en ús", ignoreCase = true) == true
+                        
+                        // Detectar paraules clau de préstecs explícites
+                        val hasLoanKeywords = fullMessage?.contains("préstec", ignoreCase = true) == true ||
+                                fullMessage?.contains("prestec", ignoreCase = true) == true ||
+                                fullMessage?.contains("No es pot eliminar", ignoreCase = true) == true ||
+                                fullMessage?.contains("Cal retornar", ignoreCase = true) == true ||
+                                fullMessage?.contains("associats", ignoreCase = true) == true ||
+                                fullMessage?.contains("té préstec", ignoreCase = true) == true ||
+                                fullMessage?.contains("té prestec", ignoreCase = true) == true
+                        
+                        // Detectar paraules clau de clau forània (sense mencionar préstecs explícitament)
+                        val hasForeignKeyKeywords = fullMessage?.contains("llave foránea", ignoreCase = true) == true ||
+                                fullMessage?.contains("foreign key", ignoreCase = true) == true ||
+                                fullMessage?.contains("referida desde", ignoreCase = true) == true ||
+                                fullMessage?.contains("referenciat per altres registres", ignoreCase = true) == true ||
+                                fullMessage?.contains("referenciat", ignoreCase = true) == true ||
+                                fullMessage?.contains("viola la llave", ignoreCase = true) == true ||
+                                fullMessage?.contains("viola la llave foránea", ignoreCase = true) == true
+                        
+                        // Lògica: Si té paraules clau de préstecs -> és clau forània
+                        // Si té paraules clau de clau forània explícites -> és clau forània
+                        // Si té "restricció" però NO té indicadors de duplicació -> és clau forània
+                        // Si té indicadors de duplicació explícits -> és clau duplicada (NO clau forània)
+                        val isForeignKeyError = hasLoanKeywords || 
+                                hasForeignKeyKeywords ||
+                                ((fullMessage?.contains("restricció", ignoreCase = true) == true ||
+                                  fullMessage?.contains("restriccio", ignoreCase = true) == true ||
+                                  fullMessage?.contains("violat", ignoreCase = true) == true) &&
+                                 !hasExplicitDuplicateKeywords)
+                        
+                        // Detectar si és clau duplicada (només si NO és clau forània)
+                        val isDuplicateKeyError = !isForeignKeyError && hasExplicitDuplicateKeywords
+                        
+                        android.util.Log.d("AuthViewModel", "isForeignKeyError: $isForeignKeyError, isDuplicateKeyError: $isDuplicateKeyError")
+                        
                         when {
-                            backendMessage?.contains("llave duplicada", ignoreCase = true) == true ||
-                            backendMessage?.contains("clau duplicada", ignoreCase = true) == true ||
-                            backendMessage?.contains("ya existe", ignoreCase = true) == true ||
-                            backendMessage?.contains("ja existeix", ignoreCase = true) == true -> {
-                                "L'email o nick ja està en ús per un altre usuari"
+                            // Error d'usuari amb préstecs - PRIMER
+                            isForeignKeyError -> {
+                                // Retornar el missatge complet del backend si és rellevant
+                                when {
+                                    // Si el missatge menciona explícitament préstecs
+                                    fullMessage?.contains("préstec", ignoreCase = true) == true ||
+                                    fullMessage?.contains("prestec", ignoreCase = true) == true ||
+                                    fullMessage?.contains("No es pot eliminar", ignoreCase = true) == true ||
+                                    fullMessage?.contains("Cal retornar", ignoreCase = true) == true -> {
+                                        backendMessage ?: "No es pot eliminar l'usuari perquè té préstecs associats"
+                                    }
+                                    // Si és clau forània (detectat per "llave foránea" o "foreign key") -> és probablement préstecs
+                                    fullMessage?.contains("llave foránea", ignoreCase = true) == true ||
+                                    fullMessage?.contains("foreign key", ignoreCase = true) == true ||
+                                    fullMessage?.contains("viola la llave", ignoreCase = true) == true ||
+                                    fullMessage?.contains("referida desde", ignoreCase = true) == true ||
+                                    fullMessage?.contains("referenciat", ignoreCase = true) == true ||
+                                    fullMessage?.contains("referenciat per altres registres", ignoreCase = true) == true -> {
+                                        // Si el backend menciona "actiu(s)", mostrar missatge específic
+                                        if (fullMessage?.contains("actiu", ignoreCase = true) == true) {
+                                            "No es pot eliminar l'usuari perquè té préstecs pendents. Cal retornar tots els llibres abans d'eliminar l'usuari."
+                                        } else {
+                                            "No es pot eliminar l'usuari perquè té préstecs associats. Cal retornar tots els llibres abans d'eliminar l'usuari."
+                                        }
+                                    }
+                                    else -> {
+                                        // Missatge per defecte - si el backend ha detectat error de préstecs però el missatge no és específic
+                                        if (fullMessage?.contains("actiu", ignoreCase = true) == true) {
+                                            "No es pot eliminar l'usuari perquè té préstecs pendents de retornar."
+                                        } else {
+                                            "No es pot eliminar l'usuari perquè té préstecs associats. Cal retornar tots els llibres abans d'eliminar l'usuari."
+                                        }
+                                    }
+                                }
                             }
+                            // Error de clau duplicada (nick, email, nif) - NOMÉS si NO és clau forània
+                            isDuplicateKeyError -> {
+                                "L'email o el nick ja està en ús per un altre usuari"
+                            }
+                            // Qualsevol altre missatge del backend
                             backendMessage != null -> backendMessage
-                            else -> "L'email o nick ja està en ús per un altre usuari"
+                            else -> "Error de conflicte: No es pot realitzar aquesta operació"
                         }
                     }
                     400 -> {

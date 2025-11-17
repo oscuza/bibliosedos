@@ -114,6 +114,21 @@ fun OverdueLoansScreen(
     var showSanctionDialog by remember { mutableStateOf(false) }
 
     /**
+     * Usuari seleccionat per eliminar sanció.
+     */
+    var selectedUserForRemoveSanction by remember { mutableStateOf<UserWithOverdueInfo?>(null) }
+
+    /**
+     * Mostrar diàleg de confirmació per eliminar sanció.
+     */
+    var showRemoveSanctionDialog by remember { mutableStateOf(false) }
+
+    /**
+     * Mostrar diàleg de confirmació per eliminar tot l'historial de sancions.
+     */
+    var showClearAllSanctionsDialog by remember { mutableStateOf(false) }
+
+    /**
      * Sancions actives per usuari.
      */
     var userSanctions by remember { mutableStateOf<Map<Long, Sanction>>(emptyMap()) }
@@ -133,11 +148,16 @@ fun OverdueLoansScreen(
 
     // ========== Efectes ==========
 
-    // Carregar sancions actives
-    LaunchedEffect(Unit) {
+    // Funció per recarregar sancions
+    val reloadSanctions: () -> Unit = {
         SanctionManager.cleanExpiredSanctions(context.applicationContext)
         val sanctions = SanctionManager.getAllActiveSanctions(context.applicationContext)
         userSanctions = sanctions.associateBy { it.userId }
+    }
+
+    // Carregar sancions actives
+    LaunchedEffect(Unit) {
+        reloadSanctions()
     }
 
     // Carregar préstecs quan es carrega la pantalla
@@ -153,6 +173,8 @@ fun OverdueLoansScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 loanViewModel.loadActiveLoans(null)
                 loanViewModel.loadLoanHistory(null)
+                // Recarregar sancions quan es torna a la pantalla
+                reloadSanctions()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -272,6 +294,18 @@ fun OverdueLoansScreen(
                         )
                     }
                 },
+                actions = {
+                    // Botó per eliminar tot l'historial de sancions
+                    IconButton(
+                        onClick = { showClearAllSanctionsDialog = true }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteSweep,
+                            contentDescription = "Eliminar historial de sancions",
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer,
                     titleContentColor = MaterialTheme.colorScheme.onErrorContainer
@@ -384,14 +418,16 @@ fun OverdueLoansScreen(
                                 items = usersWithOverdueLoans,
                                 key = { it.user.id ?: 0L }
                             ) { userInfo ->
-                                val userSanction = userSanctions[userInfo.user.id]
+                                // Buscar sanció per ID d'usuari
+                                val userId = userInfo.user.id ?: 0L
+                                val userSanction = userSanctions[userId]
                                 UserOverdueCard(
                                     userInfo = userInfo,
                                     filterType = filterType,
                                     sanction = userSanction,
                                     onUserClick = {
                                         navController.navigate(
-                                            AppScreens.MyLoansScreen.createRoute(userInfo.user.id)
+                                            AppScreens.MyLoansScreen.createRoute(userId)
                                         )
                                     },
                                     onApplySanctionClick = {
@@ -399,10 +435,8 @@ fun OverdueLoansScreen(
                                         showSanctionDialog = true
                                     },
                                     onRemoveSanctionClick = {
-                                        SanctionManager.removeSanction(context.applicationContext, userInfo.user.id)
-                                        // Recarregar sancions
-                                        val sanctions = SanctionManager.getAllActiveSanctions(context.applicationContext)
-                                        userSanctions = sanctions.associateBy { it.userId }
+                                        selectedUserForRemoveSanction = userInfo
+                                        showRemoveSanctionDialog = true
                                     }
                                 )
                             }
@@ -428,11 +462,223 @@ fun OverdueLoansScreen(
                             durationDays = durationDays,
                             adminId = currentAdminId
                         )
-                        // Recarregar sancions
-                        val sanctions = SanctionManager.getAllActiveSanctions(context.applicationContext)
-                        userSanctions = sanctions.associateBy { it.userId }
-                        showSanctionDialog = false
+                        // Recarregar sancions immediatament després d'aplicar
+                        reloadSanctions()
+                        // Tancar diàleg
                         selectedUserForSanction = null
+                        showSanctionDialog = false
+                    }
+                )
+            }
+
+            // Diàleg de confirmació per eliminar sanció
+            if (showRemoveSanctionDialog && selectedUserForRemoveSanction != null) {
+                val userInfo = selectedUserForRemoveSanction!!
+                val sanction = userSanctions[userInfo.user.id]
+                
+                AlertDialog(
+                    onDismissRequest = {
+                        showRemoveSanctionDialog = false
+                        selectedUserForRemoveSanction = null
+                    },
+                    icon = {
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(48.dp)
+                        )
+                    },
+                    title = {
+                        Text(
+                            text = "Eliminar sanció",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    text = {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Vols eliminar la sanció de l'usuari següent?",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "${userInfo.user.nom} ${userInfo.user.cognom1}${if (userInfo.user.cognom2 != null) " ${userInfo.user.cognom2}" else ""}",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (sanction != null) {
+                                        Text(
+                                            text = "Motiu: ${sanction.reason}",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        if (sanction.expirationDate != null) {
+                                            val daysRemaining = sanction.getDaysRemaining()
+                                            if (daysRemaining != null) {
+                                                Text(
+                                                    text = "Expirava en: $daysRemaining dies",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Text(
+                                text = "Aquesta acció no es pot desfer.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                val userId = userInfo.user.id ?: 0L
+                                SanctionManager.removeSanction(context.applicationContext, userId)
+                                // Recarregar sancions immediatament després d'eliminar
+                                reloadSanctions()
+                                // Tancar diàleg
+                                selectedUserForRemoveSanction = null
+                                showRemoveSanctionDialog = false
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Eliminar")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = {
+                            showRemoveSanctionDialog = false
+                            selectedUserForRemoveSanction = null
+                        }) {
+                            Text("Cancel·lar")
+                        }
+                    }
+                )
+            }
+
+            // Diàleg de confirmació per eliminar tot l'historial de sancions
+            if (showClearAllSanctionsDialog) {
+                val allSanctions = SanctionManager.getAllSanctions(context.applicationContext)
+                AlertDialog(
+                    onDismissRequest = { showClearAllSanctionsDialog = false },
+                    icon = {
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(48.dp)
+                        )
+                    },
+                    title = {
+                        Text(
+                            text = "Eliminar Historial de Sancions",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    text = {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = "Vols eliminar tot l'historial de sancions?",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            
+                            if (allSanctions.isNotEmpty()) {
+                                Card(
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = "Sancions totals: ${allSanctions.size}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        val activeCount = allSanctions.count { it.isActive && !it.isExpired() }
+                                        val expiredCount = allSanctions.size - activeCount
+                                        Text(
+                                            text = "Actives: $activeCount",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                        Text(
+                                            text = "Expirades: $expiredCount",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            } else {
+                                Text(
+                                    text = "No hi ha sancions emmagatzemades.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            
+                            Text(
+                                text = "⚠️ ATENCIÓ: Aquesta acció eliminarà TOTES les sancions (actives i expirades). Aquesta acció no es pot desfer.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                SanctionManager.clearAllSanctions(context.applicationContext)
+                                // Recarregar sancions
+                                reloadSanctions()
+                                showClearAllSanctionsDialog = false
+                            },
+                            enabled = allSanctions.isNotEmpty(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Icon(
+                                Icons.Default.DeleteSweep,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Eliminar Tot")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showClearAllSanctionsDialog = false }) {
+                            Text("Cancel·lar")
+                        }
                     }
                 )
             }

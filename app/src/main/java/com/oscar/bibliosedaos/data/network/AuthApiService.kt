@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName
 import com.oscar.bibliosedaos.data.models.Autor
 import com.oscar.bibliosedaos.data.models.Exemplar
 import com.oscar.bibliosedaos.data.models.Llibre
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -498,10 +499,10 @@ interface AuthApiService {
      * **Permisos:** Només administradors (rol=2)
      *
      * @param id Identificador del llibre a eliminar
-     * @return Missatge de confirmació
+     * @return Response amb el missatge de confirmació (text pla)
      */
     @DELETE("biblioteca/llibres/eliminarLlibre/{id}")
-    suspend fun deleteLlibre(@Path("id") id: Long): String
+    suspend fun deleteLlibre(@Path("id") id: Long): Response<ResponseBody>
 
     /**
      * Obté un llibre específic per ID.
@@ -547,10 +548,10 @@ interface AuthApiService {
      * **Permisos:** Només administradors (rol=2)
      *
      * @param id Identificador de l'autor a eliminar
-     * @return Missatge de confirmació
+     * @return Response amb el missatge de confirmació (text pla)
      */
     @DELETE("biblioteca/autors/eliminarAutor/{id}")
-    suspend fun deleteAutor(@Path("id") id: Long): String
+    suspend fun deleteAutor(@Path("id") id: Long): Response<ResponseBody>
 
 // ==================== EXEMPLARS ====================
 
@@ -613,10 +614,10 @@ interface AuthApiService {
      * **Permisos:** Només administradors (rol=2)
      *
      * @param id Identificador de l'exemplar a eliminar
-     * @return Missatge de confirmació
+     * @return Response amb el missatge de confirmació (text pla)
      */
     @DELETE("biblioteca/exemplars/eliminarExemplar/{id}")
-    suspend fun deleteExemplar(@Path("id") id: Long): String
+    suspend fun deleteExemplar(@Path("id") id: Long): Response<ResponseBody>
 
     /**
      * Obté un exemplar específic per ID.
