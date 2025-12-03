@@ -36,11 +36,16 @@ import com.oscar.bibliosedaos.ui.screens.admin.AdminHomeScreen
 import com.oscar.bibliosedaos.ui.screens.admin.AddUserScreen
 import com.oscar.bibliosedaos.ui.screens.admin.UserSearchScreen
 import com.oscar.bibliosedaos.ui.screens.admin.OverdueLoansScreen
+import com.oscar.bibliosedaos.ui.screens.groups.HorarisScreen
+import com.oscar.bibliosedaos.ui.screens.groups.GroupsScreen
+import com.oscar.bibliosedaos.ui.screens.groups.GroupDetailScreen
+import com.oscar.bibliosedaos.ui.screens.groups.AddEditGroupScreen
 import com.oscar.bibliosedaos.ui.theme.BibliotecaCloudTheme
 import com.oscar.bibliosedaos.ui.viewmodels.AuthViewModel
 import androidx.lifecycle.lifecycleScope
 import com.oscar.bibliosedaos.ui.viewmodels.BookViewModel
 import com.oscar.bibliosedaos.ui.viewmodels.LoanViewModel
+import com.oscar.bibliosedaos.ui.viewmodels.GroupViewModel
 import kotlinx.coroutines.launch
 
 
@@ -206,6 +211,7 @@ fun AppNavigation() {
     val asToken = TokenManager.hasToken()
     val bookViewModel: BookViewModel = viewModel()
     val loanViewModel: LoanViewModel = viewModel()
+    val groupViewModel: GroupViewModel = viewModel()
     NavHost(
         navController = navController,
         startDestination =
@@ -432,6 +438,67 @@ fun AppNavigation() {
             LoanManagementScreen(
                 navController = navController,
                 loanViewModel = loanViewModel,
+                authViewModel = authViewModel
+            )
+        }
+
+        // ========== PANTALLA DE HORARIS ==========
+
+        /**
+         * Pantalla per veure els horaris disponibles de les sales.
+         * Accessible per tots els usuaris autenticats.
+         */
+        composable(AppScreens.HorarisScreen.route) {
+            HorarisScreen(
+                navController = navController,
+                groupViewModel = groupViewModel
+            )
+        }
+
+        // ========== PANTALLES DE GRUPS DE LECTURA ==========
+        composable(AppScreens.GroupsScreen.route) {
+            GroupsScreen(
+                navController = navController,
+                groupViewModel = groupViewModel,
+                authViewModel = authViewModel
+            )
+        }
+
+        composable(
+            route = AppScreens.GroupDetail.route,
+            arguments = listOf(
+                navArgument("grupId") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val grupId = backStackEntry.arguments?.getLong("grupId") ?: 0L
+            GroupDetailScreen(
+                navController = navController,
+                grupId = grupId,
+                groupViewModel = groupViewModel,
+                authViewModel = authViewModel
+            )
+        }
+
+        composable(AppScreens.AddEditGroup.routeCreate) {
+            AddEditGroupScreen(
+                navController = navController,
+                grupId = null,
+                groupViewModel = groupViewModel,
+                authViewModel = authViewModel
+            )
+        }
+
+        composable(
+            route = AppScreens.AddEditGroup.route,
+            arguments = listOf(
+                navArgument("grupId") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val grupId = backStackEntry.arguments?.getLong("grupId") ?: 0L
+            AddEditGroupScreen(
+                navController = navController,
+                grupId = grupId,
+                groupViewModel = groupViewModel,
                 authViewModel = authViewModel
             )
         }

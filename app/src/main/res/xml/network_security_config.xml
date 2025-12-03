@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- Configuració per desenvolupament: permet HTTP i HTTPS amb certificats autosignats -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">10.0.2.2</domain>
         <domain includeSubdomains="true">localhost</domain>
+        <trust-anchors>
+            <!-- Confiar en certificats del sistema -->
+            <certificates src="system" />
+            <!-- Confiar en certificats autosignats (només desenvolupament) -->
+            <certificates src="user" />
+        </trust-anchors>
     </domain-config>
 </network-security-config>

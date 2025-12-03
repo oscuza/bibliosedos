@@ -3,6 +3,8 @@ package com.oscar.bibliosedaos.data.network
 import com.google.gson.annotations.SerializedName
 import com.oscar.bibliosedaos.data.models.Autor
 import com.oscar.bibliosedaos.data.models.Exemplar
+import com.oscar.bibliosedaos.data.models.Grup
+import com.oscar.bibliosedaos.data.models.Horari
 import com.oscar.bibliosedaos.data.models.Llibre
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -697,5 +699,118 @@ interface AuthApiService {
      */
     @PUT("biblioteca/prestecs/ferDevolucio/{prestecId}")
     suspend fun retornarPrestec(@Path("prestecId") prestecId: Long?): Response<okhttp3.ResponseBody>
+
+    // ==================== HORARIS ====================
+
+    /**
+     * Obté la llista completa d'horaris de sales.
+     *
+     * **Endpoint:** GET /biblioteca/horaris/llistarHorarisSales
+     * **Permisos:** Accessible per tots els usuaris autenticats
+     *
+     * @return Llista de [Horari] disponibles
+     */
+    @GET("biblioteca/horaris/llistarHorarisSales")
+    suspend fun getAllHoraris(): List<Horari>
+
+
+    // ==================== GRUPS DE LECTURA ====================
+
+    /**
+     * Obté la llista completa de grups de lectura.
+     *
+     * **Endpoint:** GET /biblioteca/grups/llistarGrups
+     * **Permisos:** Accessible per tots els usuaris autenticats
+     *
+     * @return Llista de [Grup] registrats
+     */
+    @GET("biblioteca/grups/llistarGrups")
+    suspend fun getAllGrups(): List<Grup>
+
+    /**
+     * Crea un nou grup de lectura.
+     *
+     * **Endpoint:** POST /biblioteca/grups/afegirGrup
+     * **Permisos:** Qualsevol usuari autenticat
+     *
+     * **Nota:** El backend espera un objecte [Grup] complet amb:
+     * - nom, tematica
+     * - administrador (objecte [User] complet)
+     * - horari (objecte [Horari] complet)
+     * - membres (llista d'objectes [User], opcional)
+     *
+     * @param grup Objecte [Grup] complet amb tots els camps necessaris
+     * @return [Grup] creat amb ID assignat
+     */
+    @POST("biblioteca/grups/afegirGrup")
+    suspend fun createGrup(@Body grup: Grup): Grup
+
+    /**
+     * Elimina un grup del sistema.
+     *
+     * **Endpoint:** DELETE /biblioteca/grups/eliminarGrup/{id}
+     * **Permisos:** Només administradors o administrador del grup
+     *
+     * @param id Identificador del grup a eliminar
+     * @return Response amb el missatge de confirmació (String)
+     */
+    @DELETE("biblioteca/grups/eliminarGrup/{id}")
+    suspend fun deleteGrup(@Path("id") id: Long): Response<String>
+
+    /**
+     * Afegeix un membre a un grup de lectura.
+     *
+     * **Endpoint:** PUT /biblioteca/grups/{grupId}/afegirUsuariGrup/{membreId}
+     * **Permisos:** Accessible per usuaris autenticats (només el propi usuari pot afegir-se)
+     *
+     * @param grupId Identificador del grup
+     * @param membreId Identificador de l'usuari a afegir (ha de coincidir amb l'usuari autenticat)
+     * @return [Grup] actualitzat amb el nou membre
+     */
+    @PUT("biblioteca/grups/{grupId}/afegirUsuariGrup/{membreId}")
+    suspend fun addMemberToGrup(
+        @Path("grupId") grupId: Long,
+        @Path("membreId") membreId: Long
+    ): Grup
+
+    /**
+     * Obté la llista de membres d'un grup.
+     *
+     * **Endpoint:** GET /biblioteca/grups/llistarUsuarisGrup/{grupId}
+     * **Permisos:** Accessible per usuaris autenticats
+     *
+     * @param grupId Identificador del grup
+     * @return Llista d'objectes [User] que són membres del grup
+     */
+    @GET("biblioteca/grups/llistarUsuarisGrup/{grupId}")
+    suspend fun getMembresGrup(@Path("grupId") grupId: Long): List<User>
+
+    /**
+     * Elimina un membre d'un grup de lectura.
+     *
+     * **Endpoint:** DELETE /biblioteca/grups/{grupId}/sortirUsuari/{membreId}
+     * **Permisos:** Accessible per usuaris autenticats (propi usuari o admin)
+     *
+     * @param grupId Identificador del grup
+     * @param membreId Identificador de l'usuari a eliminar
+     * @return Response amb el missatge de confirmació (String)
+     */
+    @DELETE("biblioteca/grups/{grupId}/sortirUsuari/{membreId}")
+    suspend fun removeMemberFromGrup(
+        @Path("grupId") grupId: Long,
+        @Path("membreId") membreId: Long
+    ): Response<String>
+
+    // ========== ENDPOINTS NO IMPLEMENTATS AL BACKEND ==========
+    // Els següents endpoints no existeixen al backend actual i queden comentats:
+    //
+    // @GET("biblioteca/grups/trobarGrupPerId/{id}")
+    // suspend fun getGrupById(@Path("id") id: Long): Grup
+    //
+    // @PUT("biblioteca/grups/actualitzarGrup/{id}")
+    // suspend fun updateGrup(...): Grup
+    //
+    // @GET("biblioteca/grups/grupsPerUsuari/{usuariId}")
+    // suspend fun getGrupsByUsuari(@Path("usuariId") usuariId: Long): List<Grup>
 
 }

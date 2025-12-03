@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import okhttp3.ResponseBody
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.*
@@ -171,6 +172,48 @@ class LoanTest {
             }
         }
 
+        override suspend fun getAllHoraris(): List<Horari> {
+            TODO("Not yet implemented")
+        }
+
+        override suspend fun getAllGrups(): List<Grup> {
+            TODO("Not yet implemented")
+        }
+
+        override suspend fun getGrupById(id: Long): Grup {
+            TODO("Not yet implemented")
+        }
+
+        override suspend fun createGrup(request: CreateGrupRequest): Grup {
+            TODO("Not yet implemented")
+        }
+
+        override suspend fun updateGrup(
+            id: Long,
+            request: UpdateGrupRequest,
+        ): Grup {
+            TODO("Not yet implemented")
+        }
+
+        override suspend fun deleteGrup(id: Long): Response<ResponseBody> {
+            TODO("Not yet implemented")
+        }
+
+        override suspend fun addMemberToGrup(request: AddMemberRequest): Grup {
+            TODO("Not yet implemented")
+        }
+
+        override suspend fun removeMemberFromGrup(
+            grupId: Long,
+            usuariId: Long,
+        ): Response<ResponseBody> {
+            TODO("Not yet implemented")
+        }
+
+        override suspend fun getGrupsByUsuari(usuariId: Long): List<Grup> {
+            TODO("Not yet implemented")
+        }
+
         // Mètodes no utilitzats
         override suspend fun login(request: com.oscar.bibliosedaos.data.network.AuthenticationRequest) =
             error("no utilitzat")
@@ -214,6 +257,48 @@ class LoanTest {
         }
         override suspend fun retornarPrestec(prestecId: Long?): Response<okhttp3.ResponseBody> {
             return Response.error(404, "Préstec no trobat".toResponseBody())
+        }
+
+        override suspend fun getAllHoraris(): List<Horari> {
+            TODO("Not yet implemented")
+        }
+
+        override suspend fun getAllGrups(): List<Grup> {
+            TODO("Not yet implemented")
+        }
+
+        override suspend fun getGrupById(id: Long): Grup {
+            TODO("Not yet implemented")
+        }
+
+        override suspend fun createGrup(request: CreateGrupRequest): Grup {
+            TODO("Not yet implemented")
+        }
+
+        override suspend fun updateGrup(
+            id: Long,
+            request: UpdateGrupRequest,
+        ): Grup {
+            TODO("Not yet implemented")
+        }
+
+        override suspend fun deleteGrup(id: Long): Response<ResponseBody> {
+            TODO("Not yet implemented")
+        }
+
+        override suspend fun addMemberToGrup(request: AddMemberRequest): Grup {
+            TODO("Not yet implemented")
+        }
+
+        override suspend fun removeMemberFromGrup(
+            grupId: Long,
+            usuariId: Long,
+        ): Response<ResponseBody> {
+            TODO("Not yet implemented")
+        }
+
+        override suspend fun getGrupsByUsuari(usuariId: Long): List<Grup> {
+            TODO("Not yet implemented")
         }
 
         // Mètodes no utilitzats

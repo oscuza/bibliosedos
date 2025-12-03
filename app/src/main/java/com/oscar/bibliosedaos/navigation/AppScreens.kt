@@ -526,4 +526,100 @@ sealed class AppScreens(val route: String) {
      * @see AdminHomeScreen
      */
     object OverdueLoansScreen : AppScreens("overdue_loans_screen")
+
+    // ========== PANTALLES DE HORARIS ==========
+
+    /**
+     * Pantalla per veure els horaris disponibles de les sales.
+     *
+     * **Descripció:**
+     * Mostra tots els horaris de les sales de la biblioteca, diferenciant
+     * visualment els horaris disponibles dels ocupats.
+     *
+     * **Funcionalitats:**
+     * - Llistat de tots els horaris
+     * - Separació visual entre horaris disponibles i ocupats
+     * - Informació: sala, dia, hora, estat
+     *
+     * **Permisos:**
+     * - 👥 Accessible per tots els usuaris autenticats
+     * - 🔒 Requereix token JWT vàlid
+     *
+     * **Ruta:** `horaris_screen`
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see HorarisScreen
+     */
+    object HorarisScreen : AppScreens("horaris_screen")
+
+    // ========== PANTALLES DE GRUPS DE LECTURA ==========
+    // NOTA: La funcionalitat de grups no està implementada al backend actualment
+    // Les següents pantalles queden comentades fins que el backend les implementi
+
+    /**
+     * Pantalla de llistat de grups de lectura.
+     *
+     * **Descripció:**
+     * Mostra tots els grups de lectura disponibles a la biblioteca.
+     * Permet als usuaris veure informació bàsica de cada grup i accedir als detalls.
+     *
+     * **Estat:** NO IMPLEMENTAT AL BACKEND
+     *
+     * **Ruta:** `groups_screen`
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see GroupsScreen
+     */
+    object GroupsScreen : AppScreens("groups_screen")
+
+    /**
+     * Pantalla de detall d'un grup de lectura.
+     *
+     * **Descripció:**
+     * Mostra la informació completa d'un grup de lectura, incloent
+     * llista de membres, horari, administrador i permet gestionar membres.
+     *
+     * **Funcionalitats:**
+     * - Informació completa del grup
+     * - Llista de membres
+     * - Informació de l'administrador
+     * - Horari assignat
+     * - Afegir/eliminar membres (segons permisos)
+     * - Editar grup (només administrador del grup o admin del sistema)
+     * - Eliminar grup (només administrador del grup o admin del sistema)
+     *
+     * **Ruta:** `group_detail_screen/{grupId}`
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see GroupDetailScreen
+     */
+    object GroupDetail : AppScreens("group_detail_screen/{grupId}") {
+        fun createRoute(grupId: Long) = "group_detail_screen/$grupId"
+    }
+
+    /**
+     * Pantalla per crear o editar un grup de lectura.
+     *
+     * **Descripció:**
+     * Formulari per crear nous grups de lectura o editar grups existents.
+     * Permet seleccionar un horari disponible. Qualsevol usuari autenticat pot crear un grup.
+     *
+     * **Permisos:**
+     * - 👥 Qualsevol usuari autenticat pot crear un grup
+     * - 🔒 Requereix token JWT vàlid
+     * - ⚠️ Només l'administrador del grup o un admin del sistema pot editar/eliminar
+     *
+     * **Ruta:** `add_edit_group_screen/{grupId}` o `add_edit_group_screen` (per crear nou)
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see AddEditGroupScreen
+     */
+    object AddEditGroup : AppScreens("add_edit_group_screen/{grupId}") {
+        const val routeCreate = "add_edit_group_screen"
+        fun createRoute(grupId: Long) = "add_edit_group_screen/$grupId"
+    }
 }

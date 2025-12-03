@@ -1256,6 +1256,26 @@ fun AdminUserSection(
             })
     }
 
+    // ========== Grups de Lectura ==========
+
+    /**
+     * Card per accedir als grups de lectura.
+     * Permet veure i gestionar grups de lectura.
+     */
+    SectionCard(
+        title = "Grups de Lectura",
+        icon = Icons.Default.Group,
+        containerColor = MaterialTheme.colorScheme.secondaryContainer
+    ) {
+        OptionItem(
+            icon = Icons.Default.Group,
+            title = "Grups de Lectura",
+            subtitle = "Veure i gestionar grups de lectura",
+            onClick = {
+                navController.navigate(AppScreens.GroupsScreen.route)
+            })
+    }
+
 }
 
 /**
@@ -1365,6 +1385,26 @@ fun NormalUserSection(
             subtitle = "Veure préstecs anteriors",
             onClick = {
                 navController.navigate(AppScreens.LoanHistoryScreen.routeWithoutParams)
+            })
+    }
+
+    // ========== Grups de Lectura ==========
+
+    /**
+     * Card per accedir als grups de lectura.
+     * Permet veure i gestionar grups de lectura.
+     */
+    SectionCard(
+        title = "Grups de Lectura",
+        icon = Icons.Default.Group,
+        containerColor = MaterialTheme.colorScheme.secondaryContainer
+    ) {
+        OptionItem(
+            icon = Icons.Default.Group,
+            title = "Grups de Lectura",
+            subtitle = "Veure i gestionar grups de lectura",
+            onClick = {
+                navController.navigate(AppScreens.GroupsScreen.route)
             })
     }
 

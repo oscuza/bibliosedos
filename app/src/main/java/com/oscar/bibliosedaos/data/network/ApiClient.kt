@@ -4,6 +4,11 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
 
 /**
  * Client HTTP singleton per a la comunicació amb l'API REST del backend.
@@ -44,15 +49,22 @@ object ApiClient {
      * **Configuració per Emulador Android:**
      * - Utilitza `10.0.2.2` per accedir al localhost del PC
      * - El port ha de coincidir amb el port del servidor backend
+     * - **IMPORTANT:** El backend està configurat per HTTPS al port 8443
      *
      * **Configuració per Dispositiu Físic:**
      * - Cal utilitzar la IP real del PC a la xarxa local
-     * - Exemple: `http://192.168.1.100:8080/`
+     * - Exemple: `https://192.168.1.100:8443/`
      *
      * **Nota de Seguretat:**
-     * En TEA 4 utilitzar HTTPS en lloc de HTTP.
+     * El backend utilitza HTTPS amb certificat autosignat. Per a desenvolupament,
+     * cal configurar el client per confiar en certificats autosignats.
+     * En producció, utilitzar certificats vàlids.
+     *
+     * **Si el backend no està configurat amb HTTPS:**
+     * Canvia el port a 8080 i utilitza HTTP: `http://10.0.2.2:8080/`
+     * Però assegura't que el backend estigui configurat per HTTP al port 8080.
      */
-    private const val BASE_URL = "http://10.0.2.2:8080/"
+    private const val BASE_URL = "https://10.0.2.2:8443/"
 
     /**
      * Interceptor per registrar peticions i respostes HTTP.
@@ -88,21 +100,48 @@ object ApiClient {
     private val authInterceptor = AuthInterceptor()
 
     /**
+     * TrustManager que confia en tots els certificats (només per desenvolupament).
+     * 
+     * **ATENCIÓ:** Això és només per desenvolupament amb certificats autosignats.
+     * En producció, utilitzar certificats vàlids i eliminar aquesta configuració.
+     */
+    private val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
+        override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+        override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+        override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+    })
+
+    /**
+     * SSLContext configurat per confiar en certificats autosignats (només desenvolupament).
+     */
+    private val sslContext = SSLContext.getInstance("SSL").apply {
+        init(null, trustAllCerts, SecureRandom())
+    }
+
+    /**
      * Client OkHttp configurat amb els interceptors necessaris.
      *
      * **Ordre dels Interceptors:**
      * 1. [authInterceptor]: S'executa primer per afegir el token
      * 2. [loggingInterceptor]: S'executa després per registrar la petició completa
      *
+     * **Configuracions:**
+     * - Timeouts de connexió i lectura (30 segons)
+     * - SSL configurat per confiar en certificats autosignats (només desenvolupament)
+     *
      * **Configuracions Addicionals Possibles:**
-     * - Timeouts de connexió i lectura
      * - Retry policies
-     * - Certificate pinning (per seguretat)
+     * - Certificate pinning (per seguretat en producció)
      * - Cache de respostes
      */
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor(authInterceptor)
         .addInterceptor(loggingInterceptor)
+        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS) // Timeout de connexió: 30 segons
+        .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS) // Timeout de lectura: 30 segons
+        .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS) // Timeout d'escriptura: 30 segons
+        .sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
+        .hostnameVerifier { _, _ -> true } // Accepta qualsevol hostname (només desenvolupament)
         .build()
 
     /**
