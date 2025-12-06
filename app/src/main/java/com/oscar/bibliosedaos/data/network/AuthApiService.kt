@@ -1,0 +1,846 @@
+package com.oscar.bibliosedaos.data.network
+
+import com.google.gson.annotations.SerializedName
+import com.oscar.bibliosedaos.data.models.Autor
+import com.oscar.bibliosedaos.data.models.Exemplar
+import com.oscar.bibliosedaos.data.models.Grup
+import com.oscar.bibliosedaos.data.models.Horari
+import com.oscar.bibliosedaos.data.models.Llibre
+import okhttp3.ResponseBody
+import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.DELETE
+import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Path
+import retrofit2.http.Query
+
+/**
+ * Model de resposta d'error del backend.
+ * Utilitzat per parsear els errors HTTP retornats pel servidor.
+ *
+ * El backend retorna un objecte amb:
+ * - status: HttpStatus (enum) que es serialitza com un objecte o string
+ * - message: String amb el missatge d'error
+ *
+ * @property status Codi d'estat HTTP (pot ser objecte HttpStatus o string)
+ * @property message Missatge d'error descriptiu
+ */
+data class ErrorMessage(
+    @SerializedName("status") val status: Any? = null,
+    @SerializedName("message") val message: String? = null
+)
+
+/**
+ * Interfície Retrofit per a l'API REST de BibliotecaCloud
+ * Petició d'autenticació per al login.
+ *
+ * Aquesta classe encapsula les credencials necessàries per autenticar
+ * un usuari al sistema. S'envia al backend durant el procés de login.
+ *
+ * @property nick Nom d'usuari únic que identifica l'usuari al sistema
+ * @property password Contrasenya de l'usuari en text pla (es xifra durant la transmissió HTTPS)
+ *
+ * @author Oscar
+ * @since 1.0
+ * @see AuthApiService.login
+ */
+data class AuthenticationRequest(
+    val nick: String,
+    val password: String,
+)
+
+/**
+ * Resposta del servidor després d'un login exitós.
+ *
+ * Conté el token JWT per a autenticació de futures peticions i tota
+ * la informació bàsica de l'usuari autenticat.
+ *
+ * @property token Token JWT per autenticació de futures peticions HTTP
+ * @property id Identificador únic de l'usuari a la base de dades
+ * @property rol Rol de l'usuari (1=Usuari Normal, 2=Administrador)
+ * @property nick Nom d'usuari (pot ser null en algunes respostes)
+ * @property nom Nom real de l'usuari (pot ser null)
+ * @property cognom1 Primer cognom de l'usuari (pot ser null)
+ * @property cognom2 Segon cognom de l'usuari (opcional, pot ser null)
+ *
+ * @author Oscar
+ * @since 1.0
+ * @see AuthApiService.login
+ * @see AuthApiService.createUser
+ */
+data class AuthResponse(
+    @SerializedName("token") val token: String,
+    @SerializedName("id") val id: Long,
+    @SerializedName("rol") val rol: Int,
+    @SerializedName("nick") val nick: String?,
+    @SerializedName("nom") val nom: String?,
+    @SerializedName("cognom1") val cognom1: String?,
+    @SerializedName("cognom2") val cognom2: String?,
+)
+
+/**
+ * Model de dades que representa un usuari del sistema.
+ *
+ * Aquesta classe s'utilitza per representar usuaris ja existents al sistema.
+ * Conté tota la informació personal i de rol d'un usuari.
+ *
+ * Inclou tant els camps bàsics com els addicionals que són obligatoris al backend.
+ *
+ * @property id Identificador únic de l'usuari
+ * @property nick Nom d'usuari únic
+ * @property nom Nom real
+ * @property cognom1 Primer cognom
+ * @property cognom2 Segon cognom (opcional)
+ * @property rol Rol de l'usuari (1=Normal, 2=Administrador)
+ * @property nif NIF/DNI de l'usuari
+ * @property localitat Localitat de residència
+ * @property carrer Adreça/Carrer
+ * @property cp Codi postal
+ * @property provincia Província
+ * @property tlf Telèfon de contacte
+ * @property email Correu electrònic
+ *
+ * @author Oscar
+ * @since 1.0
+ */
+data class User(
+    @SerializedName("id") val id: Long,
+    @SerializedName("nick") val nick: String,
+    @SerializedName("nom") val nom: String,
+    @SerializedName("cognom1") val cognom1: String?,
+    @SerializedName("cognom2") val cognom2: String?,
+    @SerializedName("rol") val rol: Int,
+    // Camps adicionals que requereix el backend
+    @SerializedName("nif") val nif: String? = null,
+    @SerializedName("localitat") val localitat: String? = null,
+    @SerializedName("carrer") val carrer: String? = null,
+    @SerializedName("cp") val cp: String? = null,
+    @SerializedName("provincia") val provincia: String? = null,
+    @SerializedName("tlf") val tlf: String? = null,
+    @SerializedName("email") val email: String? = null,
+    @SerializedName("password") val password: String? = null
+) {
+    /**
+     * Comprova si l'usuari és administrador.
+     *
+     * @return `true` si l'usuari té rol d'administrador (rol=2), `false` altrament
+     */
+    val isAdmin: Boolean get() = rol == 2
+
+    /**
+     * Comprova si l'usuari és un usuari normal.
+     *
+     * @return `true` si l'usuari té rol d'usuari normal (rol=1), `false` altrament
+     */
+    val isUser: Boolean get() = rol == 1
+
+    /**
+     * Retorna el nom del rol en format llegible.
+     *
+     * @return String amb el nom del rol: "Administrador", "Usuario" o "Desconocido"
+     */
+    val roleName: String
+        get() = when (rol) {
+            2 -> "Administrador"
+            1 -> "Usuari"
+            else -> "Desconegut"
+        }
+}
+
+/**
+ * Petició per crear un nou usuari amb TOTS els camps obligatoris del backend.
+ *
+ * IMPORTANT: Tots aquests camps són OBLIGATORIS al backend i han de tenir un valor.
+ * Si no es proporcionen, el backend retornarà un error 400.
+ *
+ * @property nick Nom d'usuari únic (3-50 caràcters)
+ * @property password Contrasenya (mínim 6 caràcters)
+ * @property nom Nom real (mínim 2 caràcters)
+ * @property cognom1 Primer cognom (mínim 2 caràcters)
+ * @property rol Rol de l'usuari (1=Normal, 2=Admin)
+ * @property nif NIF/DNI (OBLIGATORI al backend)
+ * @property localitat Localitat (OBLIGATORI al backend)
+ * @property carrer Adreça (OBLIGATORI al backend)
+ * @property cp Codi postal (OBLIGATORI al backend)
+ * @property provincia Província (OBLIGATORI al backend)
+ * @property tlf Telèfon (OBLIGATORI al backend)
+ * @property email Correu electrònic (OBLIGATORI al backend)
+ * @property cognom2 Segon cognom (opcional)
+ *
+ * @author Oscar
+ * @since 1.0
+ * @see AuthApiService.createUser
+ */
+data class CreateUserRequest(
+    @SerializedName("nick") val nick: String,
+    @SerializedName("password") val password: String,
+    @SerializedName("nom") val nom: String,
+    @SerializedName("cognom1") val cognom1: String,
+    @SerializedName("rol") val rol: Int,
+    // Camps que són OBLIGATORIS al backend (no poden ser null)
+    @SerializedName("nif") val nif: String,
+    @SerializedName("localitat") val localitat: String,
+    @SerializedName("carrer") val carrer: String,
+    @SerializedName("cp") val cp: String,
+    @SerializedName("provincia") val provincia: String,
+    @SerializedName("tlf") val tlf: String,
+    @SerializedName("email") val email: String,
+    // Camp opcional
+    @SerializedName("cognom2") val cognom2: String? = null
+
+)
+
+/**
+ * Petició per actualitzar un usuari existent amb TOTS els camps necessaris.
+ *
+ * IMPORTANT: El backend valida que tots aquests camps existeixin, per això
+ * hem de mantenir els valors existents dels camps que no es volen modificar.
+ *
+ * @property id Identificador de l'usuari
+ * @property nick Nom d'usuari
+ * @property nom Nom real
+ * @property cognom1 Primer cognom
+ * @property rol Rol de l'usuari
+ * @property nif NIF/DNI (mantenir l'existent si no es modifica)
+ * @property localitat Localitat (mantenir l'existent si no es modifica)
+ * @property carrer Adreça (mantenir l'existent si no es modifica)
+ * @property cp Codi postal (mantenir l'existent si no es modifica)
+ * @property provincia Província (mantenir l'existent si no es modifica)
+ * @property tlf Telèfon (mantenir l'existent si no es modifica)
+ * @property email Email (mantenir l'existent si no es modifica)
+ * @property cognom2 Segon cognom (opcional)
+ * @property password Contrasenya (no s'actualitza en edició normal)
+ */
+data class UpdateUserRequest(
+    @SerializedName("id") val id: Long,
+    @SerializedName("nick") val nick: String,
+    @SerializedName("nom") val nom: String,
+    @SerializedName("cognom1") val cognom1: String,
+    @SerializedName("rol") val rol: Int,
+    // Camps que el backend valida com obligatoris
+    @SerializedName("nif") val nif: String,
+    @SerializedName("localitat") val localitat: String,
+    @SerializedName("carrer") val carrer: String,
+    @SerializedName("cp") val cp: String,
+    @SerializedName("provincia") val provincia: String,
+    @SerializedName("tlf") val tlf: String,
+    @SerializedName("email") val email: String,
+    // Camps opcionals
+    @SerializedName("cognom2") val cognom2: String? = null,
+    @SerializedName("password") val password: String? = null
+)
+/**
+ * Servei de API REST per a operacions d'autenticació i gestió d'usuaris.
+ *
+ * Defineix tots els endpoints disponibles per interactuar amb el backend.
+ * Utilitza Retrofit per gestionar les peticions HTTP de forma asíncrona
+ * amb coroutines de Kotlin (suspend functions).
+ *
+ * **Endpoints d'Autenticació:**
+ * - [login]: Autenticar usuari
+ * - [logout]: Tancar sessió
+ * - [createUser]: Registrar nou usuari
+ *
+ * **Endpoints de Gestió d'Usuaris:**
+ * - [getAllUsers]: Llistar tots els usuaris
+ * - [getUserById]: Obtenir usuari per ID
+ * - [updateUser]: Actualitzar usuari existent
+ * - [deleteUser]: Eliminar usuari
+ *
+ * @author Oscar
+ * @since 1.0
+ * @see ApiClient
+ */
+interface AuthApiService {
+
+    /**
+     * Autentica un usuari al sistema.
+     *
+     * Envia les credencials (nick i password) al servidor per verificar-les.
+     * Si l'autenticació és exitosa, retorna un token JWT i les dades de l'usuari.
+     *
+     * **Endpoint:** `POST /biblioteca/auth/login`
+     *
+     * **Requeriments:**
+     * - No requereix autenticació prèvia
+     * - Les credencials s'envien en el body de la petició
+     *
+     * @param request Credencials de login (nick i password)
+     * @return [AuthResponse] amb el token JWT i dades de l'usuari autenticat
+     * @throws retrofit2.HttpException si les credencials són incorrectes (401/403)
+     * @throws java.io.IOException si hi ha problemes de xarxa
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see AuthenticationRequest
+     * @see AuthResponse
+     */
+    @POST("biblioteca/auth/login")
+    suspend fun login(@Body request: AuthenticationRequest): AuthResponse
+
+    /**
+     * Obté la llista completa d'usuaris registrats al sistema.
+     *
+     * **Endpoint:** `GET /biblioteca/usuaris/llistarUsuaris`
+     *
+     * **Requeriments:**
+     * - Requereix autenticació (token JWT)
+     * - Només accessible per usuaris autenticats
+     * - El token s'afegeix automàticament via [AuthInterceptor]
+     *
+     * @return Llista de [User] amb tots els usuaris del sistema
+     * @throws retrofit2.HttpException si no està autenticat (401) o no té permisos (403)
+     * @throws java.io.IOException si hi ha problemes de xarxa
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see User
+     */
+    @GET("biblioteca/usuaris/llistarUsuaris")
+    suspend fun getAllUsers(): List<User>
+
+    /**
+     * Obté les dades d'un usuari específic pel seu identificador.
+     *
+     * **Endpoint:** `GET /biblioteca/usuaris/trobarUsuariPerId/{id}`
+     *
+     * **Requeriments:**
+     * - Requereix autenticació (token JWT)
+     * - L'usuari ha d'existir al sistema
+     *
+     * @param userId Identificador únic de l'usuari a obtenir
+     * @return [User] amb les dades de l'usuari sol·licitat
+     * @throws retrofit2.HttpException si l'usuari no existeix (404) o no està autenticat (401)
+     * @throws java.io.IOException si hi ha problemes de xarxa
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see User
+     */
+    @GET("biblioteca/usuaris/trobarUsuariPerId/{id}")
+    suspend fun getUserById(@Path("id") userId: Long): User
+
+
+    /**
+     * Obté les dades d'un usuari específic pel seu NIF/DNI.
+     *
+     * **Endpoint:** `GET /biblioteca/usuaris/trobarUsuariPerNif/{nif}`
+     *
+     * **Requeriments:**
+     * - Requereix autenticació (token JWT)
+     * - L'usuari amb aquest NIF ha d'existir al sistema
+     *
+     * @param nif NIF/DNI de l'usuari a cercar
+     * @return [User] amb les dades de l'usuari trobat
+     * @throws retrofit2.HttpException si l'usuari no existeix (404) o no està autenticat (401)
+     * @throws java.io.IOException si hi ha problemes de xarxa
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see User
+     */
+    @GET("biblioteca/usuaris/trobarUsuariPerNif/{nif}")
+    suspend fun getUserByNif(@Path("nif") nif: String): Response<User>
+
+
+
+    /**
+     * Actualitza les dades d'un usuari existent.
+     *
+     * Permet modificar la informació personal d'un usuari. Normalment
+     * s'utilitza per actualitzar el perfil propi o per administradors
+     * que gestionen altres usuaris.
+     *
+     * **Endpoint:** `PUT /biblioteca/usuaris/actualitzarUsuari/{id}`
+     *
+     * **Requeriments:**
+     * - Requereix autenticació (token JWT)
+     * - El nick ha de ser únic (no pot coincidir amb un altre usuari)
+     *
+     * @param userId Identificador de l'usuari a actualitzar
+     * @param user Objecte [User] amb les dades actualitzades
+     * @return [User] amb les dades ja actualitzades
+     * @throws retrofit2.HttpException si el nick ja existeix (409) o no està autenticat (401)
+     * @throws java.io.IOException si hi ha problemes de xarxa
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see User
+     */
+    @PUT("biblioteca/usuaris/actualitzarUsuari/{id}")
+    suspend fun updateUser(
+        @Path("id") userId: Long,
+        @Body user: UpdateUserRequest,
+    ): User
+
+    /**
+     * Elimina un usuari del sistema de forma permanent.
+     *
+     * **Endpoint:** `DELETE /biblioteca/usuaris/eliminarUsuari/{id}`
+     *
+     * **Requeriments:**
+     * - Requereix autenticació (token JWT)
+     * - Requereix permisos d'administrador
+     * - Un administrador NO pot eliminar-se a si mateix
+     *
+     * **Nota de Seguretat:**
+     * Aquesta operació és irreversible. Totes les dades relacionades
+     * amb l'usuari seran eliminades.
+     *
+     * @param userId Identificador de l'usuari a eliminar
+     * @return [Response] amb el resultat de l'operació (success/error)
+     * @throws retrofit2.HttpException si no té permisos (403) o l'usuari no existeix (404)
+     * @throws java.io.IOException si hi ha problemes de xarxa
+     *
+     * @author Oscar
+     * @since 1.0
+     */
+    @DELETE("biblioteca/usuaris/eliminarUsuari/{id}")
+    suspend fun deleteUser(@Path("id") userId: Long): Response<Unit>
+
+    /**
+     * Crea un nou usuari al sistema.
+     *
+     * Permet a un administrador registrar un nou usuari amb tots els seus
+     * camps obligatoris i opcionals.
+     *
+     * **Endpoint:** `POST /biblioteca/auth/afegirUsuari`
+     *
+     * **Requeriments:**
+     * - Requereix autenticació (token JWT)
+     * - Requereix permisos d'administrador
+     * - El nick ha de ser únic al sistema
+     * - Password mínim 6 caràcters
+     *
+     * **Camps Obligatoris:**
+     * - nick, password, nombre, apellido1, rol
+     *
+     * @param request Dades del nou usuari ([CreateUserRequest])
+     * @return [AuthResponse] amb els dades de l'usuari creat
+     * @throws retrofit2.HttpException si el nick ja existeix (409) o no té permisos (403)
+     * @throws java.io.IOException si hi ha problemes de xarxa
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see CreateUserRequest
+     * @see AuthResponse
+     */
+    @POST("biblioteca/auth/afegirUsuari")
+    suspend fun createUser(@Body request: CreateUserRequest): AuthResponse
+
+    /**
+     * Tanca la sessió de l'usuari actual i revoca el token JWT.
+     *
+     * Notifica al servidor que l'usuari ha tancat sessió. El servidor
+     * pot marcar el token com a invàlid o dur a terme operacions de neteja.
+     *
+     * **Endpoint:** `POST /biblioteca/auth/logout`
+     *
+     * **Requeriments:**
+     * - Requereix autenticació (el token a revocar)
+     * - S'ha de netejar el token localment després de cridar aquest endpoint
+     *
+     * **Comportament:**
+     * Encara que falli la petició al servidor, el client sempre ha de
+     * netejar el token local per seguretat.
+     *
+     * @return [Response] amb el resultat de l'operació
+     * @throws java.io.IOException si hi ha problemes de xarxa (no crític)
+     *
+     * @author Oscar
+     * @since 1.0
+     * @see TokenManager.clearToken
+     */
+    @POST("biblioteca/auth/logout")
+    suspend fun logout(): Response<String>
+
+    // ==================== LLIBRES ====================
+
+    /**
+     * Obté la llista completa de llibres.
+     *
+     * **Endpoint:** GET /biblioteca/llibres/llistarLlibres
+     * **Permisos:** Accessible per tots els usuaris autenticats
+     *
+     * @return Llista de [Llibre] disponibles
+     */
+    @GET("biblioteca/llibres/llistarLlibres")
+    suspend fun getAllLlibres(): List<Llibre>
+
+    /**
+     * Afegeix un nou llibre al sistema.
+     *
+     * **Endpoint:** PUT /biblioteca/llibres/afegirLlibre
+     * **Permisos:** Només administradors (rol=2)
+     *
+     * @param llibre Objecte [Llibre] a crear
+     * @return [Llibre] creat amb ID assignat
+     */
+    @PUT("biblioteca/llibres/afegirLlibre")
+    suspend fun addLlibre(@Body llibre: Llibre): Llibre
+
+    /**
+     * Actualitza les dades d'un llibre existent.
+     *
+     * **Endpoint:** PUT /biblioteca/llibres/actualitzarLlibre/{id}
+     * **Permisos:** Només administradors (rol=2)
+     *
+     * @param id Identificador del llibre
+     * @param llibre Objecte [Llibre] amb les dades actualitzades
+     * @return [Llibre] actualitzat
+     */
+    @PUT("biblioteca/llibres/actualitzarLlibre/{id}")
+    suspend fun updateLlibre(@Path("id") id: Long, @Body llibre: Llibre): Llibre
+
+    /**
+     * Elimina un llibre del sistema.
+     *
+     * **Endpoint:** DELETE /biblioteca/llibres/eliminarLlibre/{id}
+     * **Permisos:** Només administradors (rol=2)
+     *
+     * @param id Identificador del llibre a eliminar
+     * @return Response amb el missatge de confirmació (text pla)
+     */
+    @DELETE("biblioteca/llibres/eliminarLlibre/{id}")
+    suspend fun deleteLlibre(@Path("id") id: Long): Response<ResponseBody>
+
+    /**
+     * Obté un llibre específic per ID.
+     *
+     * **Endpoint:** GET /biblioteca/llibres/trobarLlibrePerId/{id}
+     * **Permisos:** Accessible per tots els usuaris autenticats
+     *
+     * @param id Identificador del llibre
+     * @return [Llibre] trobat
+     */
+    @GET("biblioteca/llibres/trobarLlibrePerId/{id}")
+    suspend fun getLlibreById(@Path("id") id: Long): Llibre
+
+// ==================== AUTORS ====================
+
+    /**
+     * Obté la llista completa d'autors.
+     *
+     * **Endpoint:** GET /biblioteca/autors/llistarAutors
+     * **Permisos:** Accessible per tots els usuaris autenticats
+     *
+     * @return Llista d'[Autor] registrats
+     */
+    @GET("biblioteca/autors/llistarAutors")
+    suspend fun getAllAutors(): List<Autor>
+
+    /**
+     * Afegeix un nou autor al sistema.
+     *
+     * **Endpoint:** PUT /biblioteca/autors/afegirAutor
+     * **Permisos:** Només administradors (rol=2)
+     *
+     * @param autor Objecte [Autor] a crear
+     * @return [Autor] creat amb ID assignat
+     */
+    @PUT("biblioteca/autors/afegirAutor")
+    suspend fun addAutor(@Body autor: Autor): Autor
+
+    /**
+     * Elimina un autor del sistema.
+     *
+     * **Endpoint:** DELETE /biblioteca/autors/eliminarAutor/{id}
+     * **Permisos:** Només administradors (rol=2)
+     *
+     * @param id Identificador de l'autor a eliminar
+     * @return Response amb el missatge de confirmació (text pla)
+     */
+    @DELETE("biblioteca/autors/eliminarAutor/{id}")
+    suspend fun deleteAutor(@Path("id") id: Long): Response<ResponseBody>
+
+// ==================== EXEMPLARS ====================
+
+    /**
+     * Obté la llista completa d'exemplars.
+     *
+     * **Endpoint:** GET /biblioteca/exemplars/llistarExemplars
+     * **Permisos:** Accessible per tots els usuaris autenticats
+     *
+     * @return Llista d'[Exemplar] disponibles
+     */
+    @GET("biblioteca/exemplars/llistarExemplars")
+    suspend fun getAllExemplars(): List<Exemplar>
+
+    /**
+     * Cerca exemplars lliures per títol o autor.
+     *
+     * **Endpoint:** GET /biblioteca/exemplars/llistarExemplarsLliures
+     * **Permisos:** Accessible per tots els usuaris autenticats
+     *
+     * @param titol Títol del llibre a cercar (opcional)
+     * @param autor Nom de l'autor a cercar (opcional)
+     * @return Llista d'[Exemplar] lliures que coincideixen
+     */
+    @GET("biblioteca/exemplars/llistarExemplarsLliures")
+    suspend fun getExemplarsLliures(
+        @Query("titol") titol: String? = null,
+        @Query("autor") autor: String? = null
+    ): List<Exemplar>
+
+    /**
+     * Afegeix un nou exemplar al sistema.
+     *
+     * **Endpoint:** PUT /biblioteca/exemplars/afegirExemplar
+     * **Permisos:** Només administradors (rol=2)
+     *
+     * @param exemplar Objecte [Exemplar] a crear
+     * @return [Exemplar] creat amb ID assignat
+     */
+    @PUT("biblioteca/exemplars/afegirExemplar")
+    suspend fun addExemplar(@Body exemplar: Exemplar): Exemplar
+
+    /**
+     * Actualitza les dades d'un exemplar.
+     *
+     * **Endpoint:** PUT /biblioteca/exemplars/actualitzarExemplar/{id}
+     * **Permisos:** Accessible per usuaris autenticats
+     *
+     * @param id Identificador de l'exemplar
+     * @param exemplar Objecte [Exemplar] amb les dades actualitzades
+     * @return [Exemplar] actualitzat
+     */
+    @PUT("biblioteca/exemplars/actualitzarExemplar/{id}")
+    suspend fun updateExemplar(@Path("id") id: Long, @Body exemplar: Exemplar): Exemplar
+
+    /**
+     * Elimina un exemplar del sistema.
+     *
+     * **Endpoint:** DELETE /biblioteca/exemplars/eliminarExemplar/{id}
+     * **Permisos:** Només administradors (rol=2)
+     *
+     * @param id Identificador de l'exemplar a eliminar
+     * @return Response amb el missatge de confirmació (text pla)
+     */
+    @DELETE("biblioteca/exemplars/eliminarExemplar/{id}")
+    suspend fun deleteExemplar(@Path("id") id: Long): Response<ResponseBody>
+
+    /**
+     * Obté un exemplar específic per ID.
+     *
+     * **Endpoint:** GET /biblioteca/exemplars/trobarExemplarPerId/{id}
+     * **Permisos:** Accessible per tots els usuaris autenticats
+     *
+     * @param id Identificador de l'exemplar
+     * @return [Exemplar] trobat
+     */
+    @GET("biblioteca/exemplars/trobarExemplarPerId/{id}")
+    suspend fun getExemplarById(@Path("id") id: Long): Exemplar
+
+// ==================== PRÉSTECS ====================
+
+    /**
+     * Obté la llista de préstecs actius d'un usuari específic.
+     *
+     * **Endpoint:** GET /biblioteca/prestecs/llistarPrestecsActius
+     * **Permisos:** Admin pot veure tots, usuari només els seus
+     *
+     * @param usuariId ID de l'usuari (opcional, si null retorna tots els préstecs actius per admin)
+     * @return Llista de [Prestec] actius (dataDevolucio IS NULL)
+     */
+    @GET("biblioteca/prestecs/llistarPrestecsActius")
+    suspend fun getPrestecsActius(
+        @Query("usuariId") usuariId: Long? = null
+    ): List<com.oscar.bibliosedaos.data.models.Prestec>
+
+    /**
+     * Obté l'historial complet de préstecs d'un usuari.
+     *
+     * **Endpoint:** GET /biblioteca/prestecs/llistarPrestecs
+     * **Permisos:** Admin pot veure tots, usuari només els seus
+     *
+     * @param usuariId ID de l'usuari (opcional)
+     * @return Llista de tots els [Prestec] (actius i històrics)
+     */
+    @GET("biblioteca/prestecs/llistarPrestecs")
+    suspend fun getAllPrestecs(
+        @Query("usuariId") usuariId: Long? = null
+    ): List<com.oscar.bibliosedaos.data.models.Prestec>
+
+    /**
+     * Crea un nou préstec de llibre.
+     *
+     * **Endpoint:** POST /biblioteca/prestecs/afegirPrestec
+     * **Permisos:** Només administradors (rol=2)
+     *
+     * **Validacions:**
+     * - L'exemplar ha d'estar disponible (estat "lliure")
+     * - Si l'exemplar ja està prestat, llança ExemplarReservatException
+     * - Marca l'exemplar com "prestat" automàticament
+     *
+     * @param prestec Objecte [CreatePrestecRequest] amb les dades del préstec
+     * @return [Prestec] creat amb ID assignat
+     * @throws retrofit2.HttpException si l'exemplar ja està prestat (400)
+     */
+    @POST("biblioteca/prestecs/afegirPrestec")
+    suspend fun createPrestec(
+        @Body prestec: com.oscar.bibliosedaos.data.models.CreatePrestecRequest
+    ): com.oscar.bibliosedaos.data.models.Prestec
+
+    /**
+     * Marca un préstec com a retornat.
+     *
+     * **Endpoint:** PUT /biblioteca/prestecs/ferDevolucio/{prestecId}
+     * **Permisos:** Admin o propietari del préstec
+     *
+     * **Accions:**
+     * - Actualitza dataDevolucio amb la data actual
+     * - Marca l'exemplar com "lliure" automàticament
+     *
+     * @param prestecId ID del préstec a retornar
+     * @return Response amb el missatge de confirmació
+     * @throws retrofit2.HttpException si el préstec no existeix (404)
+     */
+    @PUT("biblioteca/prestecs/ferDevolucio/{prestecId}")
+    suspend fun retornarPrestec(@Path("prestecId") prestecId: Long?): Response<okhttp3.ResponseBody>
+
+    // ==================== HORARIS ====================
+
+    /**
+     * Obté la llista completa d'horaris de sales.
+     *
+     * **Endpoint:** GET /biblioteca/horaris/llistarHorarisSales
+     * **Permisos:** Accessible per tots els usuaris autenticats
+     *
+     * @return Llista de [Horari] disponibles
+     */
+    @GET("biblioteca/horaris/llistarHorarisSales")
+    suspend fun getAllHoraris(): List<Horari>
+
+    /**
+     * Crea un nou horari de sala.
+     *
+     * **Endpoint:** POST /biblioteca/horaris/afegirHorari
+     * **Permisos:** Només ADMIN
+     *
+     * **Nota:** El backend valida que la combinació sala-dia-hora sigui única.
+     *
+     * @param horari Objecte [Horari] amb sala, dia, hora i estat (opcional)
+     * @return [Horari] creat amb ID assignat
+     */
+    @POST("biblioteca/horaris/afegirHorari")
+    suspend fun createHorari(@Body horari: Horari): Horari
+
+    /**
+     * Elimina un horari del sistema.
+     *
+     * **Endpoint:** DELETE /biblioteca/horaris/eliminarHorari/{id}
+     * **Permisos:** Només ADMIN
+     *
+     * **NOTA:** Aquest endpoint NO existeix al backend actualment.
+     * Quan s'afegeixi al backend, descomentar aquesta funció.
+     *
+     * @param id Identificador de l'horari a eliminar
+     * @return Missatge de confirmació
+     */
+    // TODO: Descomentar quan el backend afegeixi l'endpoint DELETE /biblioteca/horaris/eliminarHorari/{id}
+    // @DELETE("biblioteca/horaris/eliminarHorari/{id}")
+    // suspend fun deleteHorari(@Path("id") id: Long): Response<ResponseBody>
+
+
+    // ==================== GRUPS DE LECTURA ====================
+
+    /**
+     * Obté la llista completa de grups de lectura.
+     *
+     * **Endpoint:** GET /biblioteca/grups/llistarGrups
+     * **Permisos:** Accessible per tots els usuaris autenticats
+     *
+     * @return Llista de [Grup] registrats
+     */
+    @GET("biblioteca/grups/llistarGrups")
+    suspend fun getAllGrups(): List<Grup>
+
+    /**
+     * Crea un nou grup de lectura.
+     *
+     * **Endpoint:** POST /biblioteca/grups/afegirGrup
+     * **Permisos:** Qualsevol usuari autenticat
+     *
+     * **Nota:** El backend espera un objecte [Grup] complet amb:
+     * - nom, tematica
+     * - administrador (objecte [User] complet)
+     * - horari (objecte [Horari] complet)
+     * - membres (llista d'objectes [User], opcional)
+     *
+     * @param grup Objecte [Grup] complet amb tots els camps necessaris
+     * @return [Grup] creat amb ID assignat
+     */
+    @POST("biblioteca/grups/afegirGrup")
+    suspend fun createGrup(@Body grup: Grup): Grup
+
+    /**
+     * Elimina un grup del sistema.
+     *
+     * **Endpoint:** DELETE /biblioteca/grups/eliminarGrup/{id}
+     * **Permisos:** Només administradors o administrador del grup
+     *
+     * @param id Identificador del grup a eliminar
+     * @return Response amb ResponseBody (el backend retorna text/plain, no JSON)
+     */
+    @DELETE("biblioteca/grups/eliminarGrup/{id}")
+    suspend fun deleteGrup(@Path("id") id: Long): Response<ResponseBody>
+
+    /**
+     * Afegeix un membre a un grup de lectura.
+     *
+     * **Endpoint:** PUT /biblioteca/grups/{grupId}/afegirUsuariGrup/{membreId}
+     * **Permisos:** Accessible per usuaris autenticats (només el propi usuari pot afegir-se)
+     *
+     * @param grupId Identificador del grup
+     * @param membreId Identificador de l'usuari a afegir (ha de coincidir amb l'usuari autenticat)
+     * @return [Grup] actualitzat amb el nou membre
+     */
+    @PUT("biblioteca/grups/{grupId}/afegirUsuariGrup/{membreId}")
+    suspend fun addMemberToGrup(
+        @Path("grupId") grupId: Long,
+        @Path("membreId") membreId: Long
+    ): Grup
+
+    /**
+     * Obté la llista de membres d'un grup.
+     *
+     * **Endpoint:** GET /biblioteca/grups/llistarUsuarisGrup/{grupId}
+     * **Permisos:** Accessible per usuaris autenticats
+     *
+     * @param grupId Identificador del grup
+     * @return Llista d'objectes [User] que són membres del grup
+     */
+    @GET("biblioteca/grups/llistarUsuarisGrup/{grupId}")
+    suspend fun getMembresGrup(@Path("grupId") grupId: Long): List<User>
+
+    /**
+     * Elimina un membre d'un grup de lectura.
+     *
+     * **Endpoint:** DELETE /biblioteca/grups/{grupId}/sortirUsuari/{membreId}
+     * **Permisos:** Accessible per usuaris autenticats (propi usuari o admin)
+     *
+     * @param grupId Identificador del grup
+     * @param membreId Identificador de l'usuari a eliminar
+     * @return Response amb ResponseBody (el backend retorna text/plain, no JSON)
+     */
+    @DELETE("biblioteca/grups/{grupId}/sortirUsuari/{membreId}")
+    suspend fun removeMemberFromGrup(
+        @Path("grupId") grupId: Long,
+        @Path("membreId") membreId: Long
+    ): Response<ResponseBody>
+
+    // ========== ENDPOINTS NO IMPLEMENTATS AL BACKEND ==========
+    // Els següents endpoints no existeixen al backend actual i queden comentats:
+    //
+    // @GET("biblioteca/grups/trobarGrupPerId/{id}")
+    // suspend fun getGrupById(@Path("id") id: Long): Grup
+    //
+    // @PUT("biblioteca/grups/actualitzarGrup/{id}")
+    // suspend fun updateGrup(...): Grup
+    //
+    // @GET("biblioteca/grups/grupsPerUsuari/{usuariId}")
+    // suspend fun getGrupsByUsuari(@Path("usuariId") usuariId: Long): List<Grup>
+
+}
